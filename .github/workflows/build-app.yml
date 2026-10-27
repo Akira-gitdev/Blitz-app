@@ -87,3 +87,238 @@ jobs:
               a.runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
+                  Window w = a.getWindow();
+                  WindowInsetsControllerCompat c = WindowCompat.getInsetsController(w, w.getDecorView());
+                  if (hide) {
+                    c.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                    c.hide(WindowInsetsCompat.Type.systemBars());
+                  } else {
+                    c.show(WindowInsetsCompat.Type.systemBars());
+                  }
+                  call.resolve();
+                }
+              });
+            }
+
+            @PluginMethod
+            public void enter(PluginCall call) {
+              bars(true, call);
+            }
+
+            @PluginMethod
+            public void exit(PluginCall call) {
+              bars(false, call);
+            }
+
+            @PluginMethod
+            public void keepAwake(final PluginCall call) {
+              final boolean on = call.getBoolean("on", true);
+              final Activity a = getActivity();
+              a.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                  if (on) {
+                    a.getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                  } else {
+                    a.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+                  }
+                  call.resolve();
+                }
+              });
+            }
+
+            @PluginMethod
+            public void setBrightness(final PluginCall call) {
+              final float v = call.getFloat("value", -1f);
+              final Activity a = getActivity();
+              a.runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                  Window w = a.getWindow();
+                  WindowManager.LayoutParams lp = w.getAttributes();
+                  lp.screenBrightness = v < 0 ? WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE : Math.max(0.02f, Math.min(1f, v));
+                  w.setAttributes(lp);
+                  call.resolve();
+                }
+              });
+            }
+
+            @PluginMethod
+            public void setVolume(PluginCall call) {
+              float v = call.getFloat("value", 0.5f);
+              AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+              int max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+              am.setStreamVolume(AudioManager.STREAM_MUSIC, Math.round(Math.max(0f, Math.min(1f, v)) * max), 0);
+              call.resolve();
+            }
+
+            @PluginMethod
+            public void getVolume(PluginCall call) {
+              AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+              int max = Math.max(1, am.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+              JSObject r = new JSObject();
+              r.put("value", (double) am.getStreamVolume(AudioManager.STREAM_MUSIC) / max);
+              call.resolve(r);
+            }
+
+            @PluginMethod
+            public void setAlarm(PluginCall call) {
+              Integer h = call.getInt("hour", 7);
+              Integer m = call.getInt("minute", 0);
+              Intent i = new Intent(AlarmClock.ACTION_SET_ALARM);
+              i.putExtra(AlarmClock.EXTRA_HOUR, h.intValue());
+              i.putExtra(AlarmClock.EXTRA_MINUTES, m.intValue());
+              i.putExtra(AlarmClock.EXTRA_MESSAGE, call.getString("message", "Blitz"));
+              i.putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+              i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+              try {
+                getContext().startActivity(i);
+                call.resolve();
+              } catch (Exception e) {
+                call.reject("Could not open the Clock app: " + e.getMessage());
+              }
+            }
+
+            @PluginMethod
+            public void termuxPermission(PluginCall call) {
+              JSObject r = new JSObject();
+              boolean ok = ContextCompat.checkSelfPermission(getContext(), "com.termux.permission.RUN_COMMAND") == PackageManager.PERMISSION_GRANTED;
+              if (!ok) {
+                ActivityCompat.requestPermissions(getActivity(), new String[] { "com.termux.permission.RUN_COMMAND" }, 4321);
+              }
+              r.put("granted", ok);
+              call.resolve(r);
+            }
+
+            @PluginMethod
+            public void termuxRun(PluginCall call) {
+              String cmd = call.getString("command", "");
+              Intent i = new Intent();
+              i.setClassName("com.termux", "com.termux.app.RunCommandService");
+              i.setAction("com.termux.RUN_COMMAND");
+              i.putExtra("com.termux.RUN_COMMAND_PATH", "/data/data/com.termux/files/usr/bin/bash");
+              i.putExtra("com.termux.RUN_COMMAND_ARGUMENTS", new String[] { "-lc", cmd });
+              i.putExtra("com.termux.RUN_COMMAND_BACKGROUND", true);
+              try {
+                getContext().startService(i);
+                call.resolve();
+              } catch (Exception e) {
+                call.reject("Termux is not reachable: " + e.getMessage());
+              }
+            }
+          }
+          BLITZ_EOF
+          mkdir -p $(dirname native/MainActivity.java)
+          cat > native/MainActivity.java <<'BLITZ_EOF'
+          package com.flambounds.blitz;
+
+          import android.os.Bundle;
+          import com.getcapacitor.BridgeActivity;
+
+          public class MainActivity extends BridgeActivity {
+            @Override
+            public void onCreate(Bundle savedInstanceState) {
+              registerPlugin(ImmersivePlugin.class);
+              super.onCreate(savedInstanceState);
+            }
+          }
+          BLITZ_EOF
+          mkdir -p $(dirname tools/patch_android.py)
+          cat > tools/patch_android.py <<'BLITZ_EOF'
+          """Runs in the cloud after `npx cap add android`. Adds permissions, the helper plugin, the notification icon and the app icon."""
+          import os, shutil
+
+          ROOT = os.getcwd()
+          AND = os.path.join(ROOT, 'android')
+          MAIN = os.path.join(AND, 'app', 'src', 'main')
+          man = os.path.join(MAIN, 'AndroidManifest.xml')
+          s = open(man, encoding='utf-8').read()
+
+          perms = [
+              'android.permission.INTERNET', 'android.permission.POST_NOTIFICATIONS', 'android.permission.VIBRATE',
+              'android.permission.SCHEDULE_EXACT_ALARM', 'android.permission.USE_EXACT_ALARM', 'android.permission.RECEIVE_BOOT_COMPLETED',
+              'android.permission.WAKE_LOCK', 'android.permission.RECORD_AUDIO', 'android.permission.MODIFY_AUDIO_SETTINGS',
+              'android.permission.READ_MEDIA_VIDEO', 'android.permission.READ_MEDIA_AUDIO', 'android.permission.READ_MEDIA_IMAGES',
+              'com.android.alarm.permission.SET_ALARM', 'com.termux.permission.RUN_COMMAND',
+          ]
+          add = ''.join('    <uses-permission android:name="%s" />\n' % p for p in perms if p not in s)
+          add += '    <queries>\n        <package android:name="com.termux" />\n    </queries>\n'
+          s = s.replace('<application', add + '    <application', 1)
+          if 'usesCleartextTraffic' not in s:
+              s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+          open(man, 'w', encoding='utf-8').write(s)
+          print('manifest patched')
+
+          # helper plugin + activity
+          jdir = os.path.join(MAIN, 'java', 'com', 'flambounds', 'blitz')
+          os.makedirs(jdir, exist_ok=True)
+          for name in ('ImmersivePlugin.java', 'MainActivity.java'):
+              shutil.copy(os.path.join(ROOT, 'native', name), os.path.join(jdir, name))
+          print('plugin copied')
+
+          # small white lightning bolt for notifications
+          res = os.path.join(MAIN, 'res')
+          os.makedirs(os.path.join(res, 'drawable'), exist_ok=True)
+          open(os.path.join(res, 'drawable', 'ic_stat_blitz.xml'), 'w').write(
+              '<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="24dp" android:height="24dp" '
+              'android:viewportWidth="24" android:viewportHeight="24"><path android:fillColor="#FFFFFFFF" '
+              'android:pathData="M13,2 L5,13 H11 L10,22 L19,10 H13 Z"/></vector>')
+
+          # app icon (skipped quietly if Pillow or the icon is missing)
+          try:
+              from PIL import Image
+              src = Image.open(os.path.join(ROOT, 'icon-512.png')).convert('RGBA')
+              sizes = {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}
+              for d, px in sizes.items():
+                  folder = os.path.join(res, 'mipmap-' + d)
+                  if not os.path.isdir(folder):
+                      continue
+                  im = src.resize((px, px), Image.LANCZOS)
+                  for name in ('ic_launcher.png', 'ic_launcher_round.png', 'ic_launcher_foreground.png'):
+                      im.save(os.path.join(folder, name))
+              shutil.rmtree(os.path.join(res, 'mipmap-anydpi-v26'), ignore_errors=True)
+              print('icons replaced')
+          except Exception as e:
+              print('icon step skipped:', e)
+          BLITZ_EOF
+
+      - name: Install Capacitor
+        run: npm install
+
+      - name: Put Blitz inside the app
+        run: |
+          mkdir -p www
+          cp blitz.html www/index.html
+          cp icon-512.png www/ || true
+
+      - name: Create the Android project
+        run: npx cap add android
+
+      - name: Add permissions, helper plugin and icon
+        run: |
+          pip install pillow
+          python3 tools/patch_android.py
+
+      - name: Sync
+        run: npx cap sync android
+
+      - name: Build the APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Keep the APK as a download
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blitz-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish the APK on the Releases page
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Blitz app (latest build)
+          body: Download Blitz-app.apk below and install it on your phone.
+          files: android/app/build/outputs/apk/debug/app-debug.apk
+          
