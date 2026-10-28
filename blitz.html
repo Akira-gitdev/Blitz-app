@@ -2718,7 +2718,7 @@ html[data-theme="dark"] .rem-form input,html[data-theme="dark"] .why-card input[
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '3.6', label: 'Easy AI' };
+const BLITZ_VERSION = { number: '3.7', label: 'Sign-in' };
 
 const Utils = {
   uid(prefix){
@@ -7019,7 +7019,54 @@ const Auth = {
     });
   },
 
+
+  /* ---- In the Android app: sign in through the phone's browser, then come back to Blitz ----
+   * A popup cannot talk back to the app, so the app opens Google's page in Chrome. Google sends the answer to a tiny
+   * page (oauth.html on GitHub Pages) which hands it to Blitz through a link that opens the app. */
+  APP_SCHEME:'com.flambounds.blitz://oauth',
+  appRedirect(){ return (Config.state.google&&Config.state.google.redirectUri)||'https://akira-gitdev.github.io/Blitz-app/oauth.html'; },
+  _appWire(){
+    if(this._wired) return; const A=Native.P('App'); if(!A||!A.addListener) return; this._wired=true;
+    A.addListener('appUrlOpen',(ev)=>{ try{ this._appGot(ev&&ev.url); }catch(e){} });
+  },
+  _appGot(url){
+    if(!url||url.indexOf(this.APP_SCHEME)!==0) return;
+    const h=url.split('#')[1]||url.split('?')[1]||''; const q=new URLSearchParams(h); const w=this._pend; this._pend=null;
+    const res = q.get('access_token') ? {ok:true,access_token:q.get('access_token'),expires_in:Number(q.get('expires_in')||3300),state:q.get('state')} : {ok:false,reason:q.get('error')==='access_denied'?'Google sign-in was cancelled or denied.':'Google sign-in did not finish ('+(q.get('error')||'no answer')+').'};
+    if(w){ if(res.ok&&q.get('state')!==w.state){ w.resolve({ok:false,reason:'Sign-in answer did not match. Please try again.'}); return; } clearTimeout(w.to); w.resolve(res); return; }
+    /* the app was restarted while the browser was open: finish what was started */
+    let kind=null; try{ kind=localStorage.getItem('blitz_auth_kind'); }catch(e){}
+    if(res.ok&&kind==='gmail') this._gmailFinish(res.access_token).then(()=>{ try{ UI.renderAccountsStatus(); UI.toast('Google connected'); }catch(e){} });
+    else if(res.ok&&kind==='yt'){ this._ytFinish(res.access_token,res.expires_in); try{ UI.renderAccountsStatus(); UI.toast('YouTube connected'); }catch(e){} }
+  },
+  _appToken(scope,kind){
+    this._appWire();
+    return new Promise((resolve)=>{
+      const cid=Config.state.google.clientId; const state=Utils.uid('st');
+      try{ localStorage.setItem('blitz_auth_kind',kind); }catch(e){}
+      const to=setTimeout(()=>{ if(this._pend&&this._pend.state===state){ this._pend=null; resolve({ok:false,reason:'Google sign-in took too long. Please try again.'}); } },300000);
+      this._pend={state,resolve,to};
+      const u='https://accounts.google.com/o/oauth2/v2/auth?client_id='+encodeURIComponent(cid)+'&redirect_uri='+encodeURIComponent(this.appRedirect())+'&response_type=token&scope='+encodeURIComponent(scope)+'&state='+encodeURIComponent(state)+'&prompt=select_account&include_granted_scopes=true';
+      try{ window.open(u,'_blank'); }catch(e){ clearTimeout(to); this._pend=null; resolve({ok:false,reason:'Could not open the browser.'}); }
+    });
+  },
+  async _gmailFinish(token){
+    try{
+      const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',{headers:{Authorization:'Bearer '+token}}).then(r=>r.json());
+      Config.state.google.connected=true; Config.state.google.name=info.name||''; Config.state.google.email=info.email||''; Config.state.google.picture=info.picture||''; Config.save();
+      return {ok:true,profile:info};
+    }catch(e){ return {ok:false,reason:'Signed in, but fetching your profile failed.'}; }
+  },
+  _ytFinish(token,expires){
+    try{ sessionStorage.setItem(this.YT_TOKEN_KEY, JSON.stringify({token:token, expiresAt: Utils.now()+(Number(expires||3300)*1000)})); }catch(e){}
+    Config.state.google.youtubeConnected=true; Config.save();
+  },
   async connectGmail(){
+    if(Native.app()){
+      if(!Config.state.google.clientId) return {ok:false, reason:'Add a Google OAuth Client ID in Settings → Accounts first.'};
+      const t=await this._appToken('https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email','gmail');
+      if(!t.ok) return {ok:false,reason:t.reason}; return this._gmailFinish(t.access_token);
+    }
     if(location.protocol!=='http:' && location.protocol!=='https:'){
       return {ok:false, reason:'Google sign-in only works when Blitz is opened as a real web address in Chrome (http://localhost:8000/blitz.html) — not by tapping the file open from a file manager or archiver app. Open it in Chrome that way, then try again.'};
     }
@@ -7070,6 +7117,11 @@ const Auth = {
    *  closes) — never written to the long-term config file. */
   YT_TOKEN_KEY:'blitz_yt_token_v1',
   async connectYoutubeAccount(){
+    if(Native.app()){
+      if(!Config.state.google.clientId) return {ok:false, reason:'Add a Google OAuth Client ID above first (same one Gmail uses is fine).'};
+      const t=await this._appToken('https://www.googleapis.com/auth/youtube.readonly','yt');
+      if(!t.ok) return {ok:false,reason:t.reason}; this._ytFinish(t.access_token,t.expires_in); return {ok:true};
+    }
     if(location.protocol!=='http:' && location.protocol!=='https:'){
       return {ok:false, reason:'Same rule as Gmail — open Blitz as http://localhost:8000/blitz.html in Chrome, not by tapping the file open from a file manager or archiver app, then try again.'};
     }
@@ -12719,6 +12771,7 @@ Object.assign(Extras,{
   initG(){
     const f0=this.remFire.bind(this); this.remFire=function(r,late){ try{ Native.cancel(r.id); }catch(e){} f0(r,late); };
     this._t(()=>this.injectSettingsG());
+    try{ Auth._appWire(); }catch(e){}
   },
   injectSettingsG(){
     const look=document.getElementById('extrasLook'); if(!look||document.getElementById('appBox')) return;
@@ -12742,6 +12795,9 @@ Object.assign(Extras,{
 });
 
 const PATCH_NOTES = [
+  {ver:'3.7', label:'Sign-in', items:[
+    'Google sign-in (Gmail and YouTube) now works inside the Android app: it opens Google in your browser and brings you back to Blitz when done'
+  ]},
   {ver:'3.6', label:'Easy AI', items:[
     'Local AI made easy in the app: “Check my setup” starts Ollama for you through Termux and lists the models on your phone (tap Use to switch). “Download” gets a new model in the background and tells you when it is ready. If Termux is not set up yet, Blitz copies the command and opens Termux so you only paste and press Enter'
   ]},
