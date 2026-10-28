@@ -246,6 +246,13 @@ jobs:
           s = s.replace('<application', add + '    <application', 1)
           if 'usesCleartextTraffic' not in s:
               s = s.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+          # deep link so Google sign-in (done in the browser) can return to Blitz
+          if 'com.flambounds.blitz' not in s.split('<activity',1)[1].split('</activity>',1)[0] or 'android:host="oauth"' not in s:
+              flt = ('        <intent-filter>\n            <action android:name="android.intent.action.VIEW" />\n'
+                     '            <category android:name="android.intent.category.DEFAULT" />\n'
+                     '            <category android:name="android.intent.category.BROWSABLE" />\n'
+                     '            <data android:scheme="com.flambounds.blitz" android:host="oauth" />\n        </intent-filter>\n')
+              s = s.replace('</activity>', flt + '        </activity>', 1)
           open(man, 'w', encoding='utf-8').write(s)
           print('manifest patched')
 
@@ -298,6 +305,7 @@ jobs:
         run: |
           pip install pillow
           python3 tools/patch_android.py
+          if [ -f extra_patch.py ]; then python3 extra_patch.py; fi
 
       - name: Sync
         run: npx cap sync android
@@ -321,4 +329,3 @@ jobs:
           name: Blitz app (latest build)
           body: Download Blitz-app.apk below and install it on your phone.
           files: android/app/build/outputs/apk/debug/app-debug.apk
-          
