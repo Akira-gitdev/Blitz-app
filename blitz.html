@@ -2718,7 +2718,7 @@ html[data-theme="dark"] .rem-form input,html[data-theme="dark"] .why-card input[
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '3.5', label: 'App' };
+const BLITZ_VERSION = { number: '3.6', label: 'Easy AI' };
 
 const Utils = {
   uid(prefix){
@@ -9805,7 +9805,7 @@ const Native = {
   async readVolume(){ const I=this.I(); if(!I) return; try{ const r=await I.getVolume(); if(r&&typeof r.value==='number') this.vol=r.value; }catch(e){} },
   async setAlarm(h,m,msg){ const I=this.I(); if(!I) return false; try{ await I.setAlarm({hour:h,minute:m,message:String(msg||'Blitz')}); return true; }catch(e){ return false; } },
   async termux(cmd){ const I=this.I(); if(!I) return {ok:false,msg:'This works inside the Blitz app.'};
-    try{ const p=await I.termuxPermission(); if(!p.granted) return {ok:false,msg:'Allow “Run commands in Termux environment” for Blitz when Android asks (or in Settings → Apps → Blitz → Permissions), then tap again.'}; await I.termuxRun({command:cmd}); return {ok:true}; }
+    try{ const p=await I.termuxPermission(); if(!p.granted) return {ok:false,perm:true,msg:'Allow “Run commands in Termux environment” for Blitz when Android asks (or in Settings → Apps → Blitz → Permissions), then tap again.'}; await I.termuxRun({command:cmd}); return {ok:true}; }
     catch(e){ return {ok:false,msg:'Could not reach Termux. Check the one-time setup below.'}; } },
   async exactAlarms(){ const LN=this.P('LocalNotifications'); if(!LN) return 'n/a'; try{ const s=await LN.checkExactNotificationSetting(); if(s.exact_alarm!=='granted'){ await LN.changeExactNotificationSetting(); return 'asked'; } return 'granted'; }catch(e){ return 'n/a'; } }
 };
@@ -12642,28 +12642,73 @@ Object.assign(Extras,{
   },
   /* ---- local AI (Ollama) fast setup ---- */
   OLLAMA_PICKS:[['qwen2.5:1.5b','Fastest','about 1 GB'],['llama3.2:1b','Very fast','about 1.3 GB'],['llama3.2:3b','Balanced','about 2 GB'],['qwen2.5:3b','Smarter','about 2 GB'],['gemma2:2b','Good writing','about 1.6 GB']],
+  OLLAMA_ENV:'export OLLAMA_ORIGINS=* OLLAMA_KEEP_ALIVE=30m OLLAMA_NUM_PARALLEL=1 OLLAMA_MAX_LOADED_MODELS=1; ',
+  OLLAMA_START(){ return this.OLLAMA_ENV+'pgrep -x ollama >/dev/null || (nohup ollama serve >/dev/null 2>&1 &)'; },
+  _obase(){ return String((Config.state.localLLM||{}).baseUrl||'http://127.0.0.1:11434').replace(/\/+$/,''); },
+  async ollamaTags(){ const ac=new AbortController(); const to=setTimeout(()=>ac.abort(),2500); try{ const j=await (await fetch(this._obase()+'/api/tags',{signal:ac.signal})).json(); return (j.models||[]).map(m=>m.name); }catch(e){ return null; } finally{ clearTimeout(to); } },
+  /* Asks Termux (through the app) to run a command. If that is not set up, copies the command and opens Termux so the person only pastes and presses Enter. */
+  async termuxOrPaste(cmd,line,after){
+    const r=await Native.termux(cmd);
+    if(r.ok) return true;
+    if(r.perm){ line.textContent=r.msg; return false; }
+    const ok=await Utils.copyToClipboard(cmd);
+    line.textContent=(ok?'I copied the command for you. ':'Copy this command: '+cmd+'. ')+'Termux is opening: touch and hold the screen, tap Paste, press Enter. Then come back here and tap the button again.';
+    Utils.tryOpenTermux(); return false;
+  },
+  async ollamaEnsure(line){
+    let names=await this.ollamaTags(); if(names) return names;
+    if(!Native.app()) return null;
+    line.textContent='Starting your local AI…';
+    if(!(await this.termuxOrPaste(this.OLLAMA_START(),line))) return undefined;
+    for(let k=0;k<15;k++){ await new Promise(r=>setTimeout(r,2000)); names=await this.ollamaTags(); if(names) return names; }
+    return null;
+  },
+  renderInstalled(names){
+    const box=document.getElementById('ofInstalled'); if(!box) return; box.textContent='';
+    const want=(Config.state.localLLM||{}).model;
+    if(!names||!names.length){ box.innerHTML='<div class="hint">No models on your phone yet. Tap Download on one below.</div>'; return; }
+    names.forEach(n=>{ const r=document.createElement('div'); r.className='row-between field'; const l=document.createElement('div'); l.innerHTML='<label style="margin:0;"></label><div class="hint"></div>'; l.querySelector('label').textContent=n; const cur=(n===want||n===want+':latest'); l.querySelector('.hint').textContent=cur?'In use':'On your phone';
+      const b=document.createElement('button'); b.className='btn sm'; b.type='button'; b.textContent=cur?'In use':'Use'; b.disabled=cur; b.onclick=()=>{ Config.state.localLLM.model=n; Config.save(); try{ UI.el.cfgLocalLLMModel.value=n; UI.renderLocalLLMStatus(); }catch(e){} UI.toast('Now using '+n); this.renderInstalled(names); };
+      r.appendChild(l); r.appendChild(b); box.appendChild(r); });
+  },
   async ollamaCheck(line){
-    const L=Config.state.localLLM, base=String(L.baseUrl||'').replace(/\/+$/,''), want=L.model; line.textContent='Checking…';
+    const L=Config.state.localLLM, base=this._obase(), want=L.model; line.textContent='Checking…';
+    const names=await this.ollamaEnsure(line);
+    if(names===undefined) return;
+    if(!names){ line.textContent=Native.app()?'Could not start the local AI. Make sure the one-time Termux setup (in Settings → Appearance → Blitz app) is done and Ollama is installed in Termux, then tap again.':'Cannot reach Ollama at '+base+'. In Termux, from the Blitz folder, run: python blitz_server.py'; return; }
+    this.renderInstalled(names);
+    const has=names.some(n=>n===want||n===want+':latest');
+    if(!has){ line.textContent=names.length?'Ollama is running, but "'+want+'" is not on your phone. Tap Use on one of your models below, or Download a new one.':'Ollama is running, but you have no models yet. Tap Download on one below.'; return; }
     try{
-      const j=await (await fetch(base+'/api/tags')).json(); const names=(j.models||[]).map(m=>m.name); const has=names.some(n=>n===want||n===want+':latest');
-      if(!has){ line.textContent='Ollama is running, but "'+want+'" is not installed. In Termux run: ollama pull '+want+(names.length?'  (installed now: '+names.join(', ')+')':''); return; }
       line.textContent='Ollama is running and "'+want+'" is installed. Loading it into memory…';
       const t0=Date.now(); const ac=new AbortController(); const to=setTimeout(()=>ac.abort(),90000);
       await fetch(base+'/api/generate',{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:want,prompt:'',keep_alive:'30m',stream:false})}); clearTimeout(to);
       line.textContent='✅ Ready. "'+want+'" is loaded and will stay in memory for 30 minutes (took '+Math.round((Date.now()-t0)/1000)+'s), so replies start fast.';
-    }catch(e){ line.textContent='Cannot reach Ollama at '+base+'. In Termux, from the Blitz folder, run: python blitz_server.py'; }
+    }catch(e){ line.textContent='Ollama is running, but loading the model took too long. Try again in a minute.'; }
+  },
+  async ollamaDownload(name,line){
+    Config.state.localLLM.model=name; Config.save(); try{ UI.el.cfgLocalLLMModel.value=name; UI.renderLocalLLMStatus(); }catch(e){}
+    if(!Native.app()){ const ok=await Utils.copyToClipboard('ollama pull '+name); UI.toast(ok?'Model set. "ollama pull '+name+'" copied: paste it in Termux (once).':'Model set. In Termux run: ollama pull '+name); Utils.tryOpenTermux(); return; }
+    const had=await this.ollamaTags(); if(had&&had.some(n=>n===name||n===name+':latest')){ UI.toast(name+' is already on your phone. Now using it.'); this.renderInstalled(had); return; }
+    line.textContent='Starting the download of '+name+'…';
+    const started=await this.termuxOrPaste(this.OLLAMA_ENV+'pgrep -x ollama >/dev/null || (nohup ollama serve >/dev/null 2>&1 &); sleep 4; ollama pull '+name,line);
+    if(!started) return;
+    const t0=Date.now(); this._dl=(this._dl||0)+1; const me=this._dl;
+    for(let k=0;k<240;k++){ await new Promise(r=>setTimeout(r,5000)); if(me!==this._dl) return; const names=await this.ollamaTags(); if(names&&names.some(n=>n===name||n===name+':latest')){ line.textContent='✅ '+name+' is on your phone. Tap “Check my setup” to load it.'; this.renderInstalled(names); UI.toast(name+' downloaded'); return; } line.textContent='Downloading '+name+'… '+Math.round((Date.now()-t0)/1000)+'s. This can take a few minutes. You can keep using Blitz.'; }
+    line.textContent='The download is taking very long. Check your internet, then tap Download again.';
   },
   async ollamaWarm(){ try{ const L=Config.state.localLLM; if(!L||!L.enabled||this._warmed) return; this._warmed=true; const base=String(L.baseUrl||'').replace(/\/+$/,''); fetch(base+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:L.model,prompt:'',keep_alive:'30m',stream:false})}).catch(()=>{}); }catch(e){} },
   injectSettingsF(){
     const panel=document.querySelector('[data-spanel="localai"]'); const anchor=document.getElementById('testLocalLLMBtn'); if(!panel||!anchor||document.getElementById('ollamaFast')) return;
     const box=document.createElement('div'); box.id='ollamaFast';
-    box.innerHTML='<div class="section-label">Fast setup (easiest)</div><div class="hint" style="margin-bottom:10px;">1) Save <b>blitz_server.py</b> in the same folder as blitz.html.<br>2) One time in Termux: <code>pkg install python ollama termux-api</code><br>3) Every time, from that folder: <code>python blitz_server.py</code><br>It starts Ollama with fast settings (model stays loaded, one chat at a time) and also runs your reminders. Then pick a model below.</div><div class="btn-row" style="margin-bottom:10px;"><button class="btn" id="ofCopy2" type="button">Copy step 2</button><button class="btn" id="ofCopy3" type="button">Copy step 3</button></div><div class="section-label">Pick a model (smaller = faster)</div><div id="ofPicks"></div><button class="btn primary block" id="ofCheck" type="button">Check my setup &amp; load model</button><div class="hint" id="ofLine" style="margin-top:6px;">Checks Ollama, your model, and loads it so the first reply is quick.</div>';
+    const app=Native.app();
+    box.innerHTML='<div class="section-label">Fast setup (easiest)</div>'+(app?'<div class="hint" style="margin-bottom:10px;">Tap <b>Check my setup</b>. Blitz starts your local AI by itself and shows the models you have. To get a new model, tap <b>Download</b>.</div>':'<div class="hint" style="margin-bottom:10px;">1) Save <b>blitz_server.py</b> in the same folder as blitz.html.<br>2) One time in Termux: <code>pkg install python ollama termux-api</code><br>3) Every time, from that folder: <code>python blitz_server.py</code><br>It starts Ollama with fast settings (model stays loaded, one chat at a time) and also runs your reminders. Then pick a model below.</div><div class="btn-row" style="margin-bottom:10px;"><button class="btn" id="ofCopy2" type="button">Copy step 2</button><button class="btn" id="ofCopy3" type="button">Copy step 3</button></div>')+'<button class="btn primary block" id="ofCheck" type="button">Check my setup &amp; load model</button><div class="hint" id="ofLine" style="margin:6px 0 10px;">Checks Ollama, your model, and loads it so the first reply is quick.</div><div class="section-label">On your phone</div><div id="ofInstalled"><div class="hint">Tap “Check my setup” to see them.</div></div><div class="section-label" style="margin-top:10px;">Get a model (smaller = faster)</div><div id="ofPicks"></div>';
     anchor.insertAdjacentElement('afterend',box);
-    const picks=box.querySelector('#ofPicks'); this.OLLAMA_PICKS.forEach(p=>{ const r=document.createElement('div'); r.className='row-between field'; const l=document.createElement('div'); l.innerHTML='<label style="margin:0;"></label><div class="hint"></div>'; l.querySelector('label').textContent=p[0]; l.querySelector('.hint').textContent=p[1]+' · '+p[2]; const b=document.createElement('button'); b.className='btn sm'; b.type='button'; b.textContent='Use';
-      b.onclick=async()=>{ Config.state.localLLM.model=p[0]; Config.save(); try{ UI.el.cfgLocalLLMModel.value=p[0]; UI.renderLocalLLMStatus(); }catch(e){} const ok=await Utils.copyToClipboard('ollama pull '+p[0]); UI.toast(ok?'Model set. "ollama pull '+p[0]+'" copied: paste it in Termux (once).':'Model set. In Termux run: ollama pull '+p[0]); Utils.tryOpenTermux(); };
+    const picks=box.querySelector('#ofPicks'); this.OLLAMA_PICKS.forEach(p=>{ const r=document.createElement('div'); r.className='row-between field'; const l=document.createElement('div'); l.innerHTML='<label style="margin:0;"></label><div class="hint"></div>'; l.querySelector('label').textContent=p[0]; l.querySelector('.hint').textContent=p[1]+' · '+p[2]; const b=document.createElement('button'); b.className='btn sm'; b.type='button'; b.textContent='Download';
+      b.onclick=()=>this.ollamaDownload(p[0],box.querySelector('#ofLine'));
       r.appendChild(l); r.appendChild(b); picks.appendChild(r); });
-    box.querySelector('#ofCopy2').onclick=async()=>{ UI.toast((await Utils.copyToClipboard('pkg install python ollama termux-api'))?'Copied. Paste it in Termux.':'Could not copy','ok'); Utils.tryOpenTermux(); };
-    box.querySelector('#ofCopy3').onclick=async()=>{ UI.toast((await Utils.copyToClipboard('termux-wake-lock; python blitz_server.py'))?'Copied. Go to the Blitz folder in Termux, then paste.':'Could not copy','ok'); Utils.tryOpenTermux(); };
+    const c2=box.querySelector('#ofCopy2'); if(c2) c2.onclick=async()=>{ UI.toast((await Utils.copyToClipboard('pkg install python ollama termux-api'))?'Copied. Paste it in Termux.':'Could not copy','ok'); Utils.tryOpenTermux(); };
+    const c3=box.querySelector('#ofCopy3'); if(c3) c3.onclick=async()=>{ UI.toast((await Utils.copyToClipboard('termux-wake-lock; python blitz_server.py'))?'Copied. Go to the Blitz folder in Termux, then paste.':'Could not copy','ok'); Utils.tryOpenTermux(); };
     box.querySelector('#ofCheck').onclick=()=>this.ollamaCheck(box.querySelector('#ofLine'));
   },
   injectSettingsF2(){
@@ -12697,6 +12742,9 @@ Object.assign(Extras,{
 });
 
 const PATCH_NOTES = [
+  {ver:'3.6', label:'Easy AI', items:[
+    'Local AI made easy in the app: “Check my setup” starts Ollama for you through Termux and lists the models on your phone (tap Use to switch). “Download” gets a new model in the background and tells you when it is ready. If Termux is not set up yet, Blitz copies the command and opens Termux so you only paste and press Enter'
+  ]},
   {ver:'3.5', label:'App', items:[
     'Ready to become a real Android app: reminders ring through the phone\'s own alarm system even when Blitz is closed, /alarm sets a real alarm in your Clock app, the video player goes truly full screen and the brightness and volume gestures change your real phone settings'
   ]},
