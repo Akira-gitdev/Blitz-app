@@ -2718,7 +2718,7 @@ html[data-theme="dark"] .rem-form input,html[data-theme="dark"] .why-card input[
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '3.7', label: 'Sign-in' };
+const BLITZ_VERSION = { number: '3.7.1', label: 'Sign-in' };
 
 const Utils = {
   uid(prefix){
@@ -12702,7 +12702,7 @@ Object.assign(Extras,{
   async termuxOrPaste(cmd,line,after){
     const r=await Native.termux(cmd);
     if(r.ok) return true;
-    if(r.perm){ line.textContent=r.msg; return false; }
+    if(r.perm && !this._permTried){ this._permTried=true; line.textContent=r.msg+' If no popup appears, just tap the button once more and I will copy the command for you instead.'; return false; }
     const ok=await Utils.copyToClipboard(cmd);
     line.textContent=(ok?'I copied the command for you. ':'Copy this command: '+cmd+'. ')+'Termux is opening: touch and hold the screen, tap Paste, press Enter. Then come back here and tap the button again.';
     Utils.tryOpenTermux(); return false;
