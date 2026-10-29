@@ -2756,7 +2756,7 @@ html[data-theme="dark"] .lab-idea textarea,html[data-theme="dark"] .lab-ed,html[
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '4.0', label: 'Lab' };
+const BLITZ_VERSION = { number: '4.1', label: 'Browser' };
 
 const Utils = {
   uid(prefix){
@@ -13010,6 +13010,29 @@ const Lab = {
 };
 
 const Browse = {
+  EXT:{'video/mp4':'mp4','video/webm':'webm','video/x-matroska':'mkv','audio/mpeg':'mp3','audio/mp4':'m4a','audio/aac':'aac','audio/ogg':'ogg','audio/wav':'wav','audio/webm':'webm','video/ogg':'ogv'},
+  st(){ const c=Config.state; c.browse=c.browse||{}; c.browse.recent=c.browse.recent||[]; return c.browse; },
+  B(){ return (typeof Native!=='undefined'&&Native.app())?Native.P('BlitzBrowser'):null; },
+  _wire(){
+    if(this._wired) return; const B=this.B(); if(!B||!B.addListener) return; this._wired=true;
+    try{
+      B.addListener('page',(e)=>{ try{ if(!e||!e.url||/^about:/.test(e.url)) return; const S=this.st(); S.recent=[{url:e.url,title:e.title||e.url}].concat(S.recent.filter(x=>x.url!==e.url)).slice(0,8); Config.save(); }catch(x){} });
+      B.addListener('download',(e)=>{ try{ this.onFileLink(e); }catch(x){} });
+      B.addListener('closed',()=>{ try{ if(UI.activeFeedTab==='browse') this.show(); }catch(x){} });
+    }catch(e){}
+  },
+  /* the page asked to download a file */
+  onFileLink(e){
+    if(!e||!e.url) return; const mime=String(e.mimeType||'').toLowerCase(); let nm=''; try{ const m=/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(e.contentDisposition||''); nm=m?decodeURIComponent(m[1]):decodeURIComponent(new URL(e.url).pathname.split('/').pop()||''); }catch(x){}
+    const media=/^(video|audio)\//.test(mime)||/\.(mp4|m4v|webm|mkv|mov|mp3|m4a|aac|ogg|opus|wav|flac|ogv)$/i.test(nm);
+    if(!media){ UI.toast('That file is not a video or song, so Blitz cannot keep it yet.','err'); return; }
+    if(!window.confirm('Download “'+(nm||'this file')+'” into My Media?')) return;
+    UI.toast('Downloading… see the progress in the Browse tab'); this.download(e.url,null,null,null,{cookie:e.cookie,ua:e.userAgent,name:nm});
+  },
+  async nativeOpen(raw){
+    const B=this.B(); if(!B) return false; this._wire();
+    try{ await B.open({url:raw}); return true; }catch(e){ return false; }
+  },
   norm(v){
     v=String(v||'').trim(); if(!v) return null;
     const y=/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/))([\w-]{11})/i.exec(v);
@@ -13020,38 +13043,45 @@ const Browse = {
   },
   show(){
     if(UI.activeFeedTab!=='browse') return; const body=UI.el.feedBody; if(!body) return; body.innerHTML=''; UI.el.feedReason.classList.add('hidden'); const h=Lab.h.bind(Lab);
-    const head=h('div','lib-head'); head.style.setProperty('--h',210); head.innerHTML='<div class="lib-stat"><b>🌐 Browse</b><span>Open sites and watch YouTube links without leaving Blitz</span></div>'; body.appendChild(head);
+    const nat=!!this.B(); if(nat) this._wire();
+    const head=h('div','lib-head'); head.style.setProperty('--h',210); head.innerHTML='<div class="lib-stat"><b>🌐 Browse</b><span>'+(nat?'A real browser inside Blitz: any site, YouTube, full screen video':'Open sites and watch YouTube links without leaving Blitz')+'</span></div>'; body.appendChild(head);
     const wrap=h('div','lab-wrap'); body.appendChild(wrap);
-    const bar=h('div','brw-bar'); const inp=h('input'); inp.type='text'; inp.id='brwUrl'; inp.placeholder='Paste a link, a YouTube link, or a word to look up'; inp.setAttribute('autocapitalize','none'); inp.setAttribute('autocorrect','off'); const go=Lab.btn('Go',()=>open(),true); bar.appendChild(inp); bar.appendChild(go); wrap.appendChild(bar);
-    const chips=h('div','lab-chips'); [['Wikipedia','https://en.wikipedia.org/'],['Internet Archive','https://archive.org/']].forEach(s=>{ const c=h('button','lab-chip',s[0]); c.type='button'; c.onclick=()=>{ inp.value=s[1]; open(); }; chips.appendChild(c); }); wrap.appendChild(chips);
-    const note=h('div','hint','Some sites do not allow being shown inside another app, and then the page stays blank. Use “Open in Chrome” for those.'); wrap.appendChild(note);
+    const bar=h('div','brw-bar'); const inp=h('input'); inp.type='text'; inp.id='brwUrl'; inp.placeholder='Search, or paste a link'; inp.setAttribute('autocapitalize','none'); inp.setAttribute('autocorrect','off'); const go=Lab.btn('Go',()=>open(inp.value),true); bar.appendChild(inp); bar.appendChild(go); wrap.appendChild(bar);
+    const chips=h('div','lab-chips'); const sites=nat?[['YouTube','https://m.youtube.com/'],['Wikipedia','https://en.wikipedia.org/'],['DuckDuckGo','https://duckduckgo.com/'],['Internet Archive','https://archive.org/']]:[['Wikipedia','https://en.wikipedia.org/'],['Internet Archive','https://archive.org/']];
+    sites.forEach(s=>{ const c=h('button','lab-chip',s[0]); c.type='button'; c.onclick=()=>open(s[1]); chips.appendChild(c); }); wrap.appendChild(chips);
+    if(nat){ const rc=this.st().recent; if(rc.length){ wrap.appendChild(h('div','hint','Recent')); const rr=h('div','lab-chips'); rc.forEach(x=>{ const c=h('button','lab-chip',String(x.title).slice(0,26)); c.type='button'; c.onclick=()=>open(x.url); rr.appendChild(c); }); wrap.appendChild(rr); } }
+    wrap.appendChild(h('div','hint',nat?'The browser opens on top of Blitz. Use the ✕ button or the back button to come back. If a page offers a video or song file to download, Blitz asks to put it in My Media.':'Some sites do not allow being shown inside another app, and then the page stays blank. Use “Open in Chrome” for those.'));
     const frWrap=h('div','brw-wrap hidden'); frWrap.id='brwWrap'; const tb=h('div','brw-tb'); const full=Lab.btn('⛶ Full screen',()=>{ frWrap.classList.toggle('brw-full'); full.textContent=frWrap.classList.contains('brw-full')?'✕ Exit full screen':'⛶ Full screen'; }); const ext=Lab.btn('↗ Open in Chrome',()=>{ if(cur) window.open(cur,'_blank'); }); const cls=Lab.btn('Close',()=>{ fr.src='about:blank'; frWrap.classList.add('hidden'); frWrap.classList.remove('brw-full'); full.textContent='⛶ Full screen'; cur=''; });
     tb.appendChild(full); tb.appendChild(ext); tb.appendChild(cls); frWrap.appendChild(tb);
     const fr=document.createElement('iframe'); fr.className='brw-frame'; fr.id='brwFrame'; fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture; encrypted-media'); fr.setAttribute('allowfullscreen',''); fr.setAttribute('referrerpolicy','no-referrer'); fr.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'); frWrap.appendChild(fr); wrap.appendChild(frWrap);
-    let cur=''; const open=()=>{ const n=this.norm(inp.value); if(!n){ UI.toast('Type or paste something first','err'); return; } cur=n.url; frWrap.classList.remove('hidden'); fr.src=n.url; if(n.search) UI.toast('Looking it up on Wikipedia'); frWrap.scrollIntoView({block:'nearest'}); };
-    inp.addEventListener('keydown',(e)=>{ if(e.key==='Enter') open(); });
+    let cur=''; const open=async(v)=>{ v=String(v||'').trim(); if(!v){ UI.toast('Type or paste something first','err'); return; } inp.value=v;
+      if(nat){ if(await this.nativeOpen(v)) return; }
+      const n=this.norm(v); cur=n.url; frWrap.classList.remove('hidden'); fr.src=n.url; if(n.search) UI.toast('Looking it up on Wikipedia'); frWrap.scrollIntoView({block:'nearest'}); };
+    inp.addEventListener('keydown',(e)=>{ if(e.key==='Enter') open(inp.value); });
     /* download a file link into My Media */
     const dl=h('div','field brw-dl'); dl.appendChild(h('div','lab-rt','⬇ Download a video or song link into My Media')); const di=h('input'); di.type='text'; di.id='brwDl'; di.placeholder='Direct link to an .mp4 / .mp3 / .m4a file'; di.setAttribute('autocapitalize','none'); dl.appendChild(di);
     const bw=h('div','brw-pb hidden'); bw.innerHTML='<div class="brw-pbo"><div class="brw-pbi"></div></div><div class="hint brw-pbt"></div>'; const row=h('div','btn-row'); const gb=Lab.btn('⬇ Download',()=>this.download(di.value.trim(),bw,gb,cb),true); const cb=Lab.btn('Cancel',()=>{ if(this._dlAbort) this._dlAbort.abort(); }); cb.classList.add('hidden'); row.appendChild(gb); row.appendChild(cb); dl.appendChild(row); dl.appendChild(bw);
     dl.appendChild(h('div','hint','Only download things you have the right to keep, such as your own files and free or open content. Links from streaming sites usually are not direct file links and will not work.')); wrap.appendChild(dl);
+    this._ui={bw,gb,cb};
   },
-  EXT:{'video/mp4':'mp4','video/webm':'webm','video/x-matroska':'mkv','audio/mpeg':'mp3','audio/mp4':'m4a','audio/aac':'aac','audio/ogg':'ogg','audio/wav':'wav','audio/webm':'webm','video/ogg':'ogv'},
-  async download(u,bw,gb,cb){
-    if(this._dling) return; if(!/^https?:\/\//i.test(u)){ UI.toast('Paste a full link starting with http','err'); return; }
-    const fill=bw.querySelector('.brw-pbi'), txt=bw.querySelector('.brw-pbt'); const fmt=(n)=>n>=1e9?(n/1e9).toFixed(2)+' GB':(n/1e6).toFixed(1)+' MB';
-    this._dling=true; gb.disabled=true; cb.classList.remove('hidden'); bw.classList.remove('hidden'); fill.style.width='0%'; txt.textContent='Starting…'; const ac=new AbortController(); this._dlAbort=ac; const t0=Date.now();
+  async download(u,bw,gb,cb,opt){
+    opt=opt||{}; const ui=this._ui||{}; bw=bw||ui.bw; gb=gb||ui.gb; cb=cb||ui.cb; const D=()=>document.getElementById('brwDl')?bw:null; const hasUI=!!(bw&&bw.isConnected);
+    const fill=hasUI?bw.querySelector('.brw-pbi'):{style:{}}, txt=hasUI?bw.querySelector('.brw-pbt'):{textContent:''}; const fmt=(n)=>n>=1e9?(n/1e9).toFixed(2)+' GB':(n/1e6).toFixed(1)+' MB';
+    if(this._dling){ UI.toast('A download is already running'); return; } if(!/^https?:\/\//i.test(u)){ UI.toast('Paste a full link starting with http','err'); return; }
+    this._dling=true; if(hasUI){ gb.disabled=true; cb.classList.remove('hidden'); bw.classList.remove('hidden'); } fill.style.width='0%'; txt.textContent='Starting…'; const ac=new AbortController(); this._dlAbort=ac; const t0=Date.now();
     try{
-      let blob,type='',name='';
+      let blob,type='',name=opt.name||'';
       try{
         const res=await fetch(u,{signal:ac.signal}); if(!res.ok) throw new Error('The site answered '+res.status);
-        type=(res.headers.get('content-type')||'').split(';')[0].trim().toLowerCase(); const cd=res.headers.get('content-disposition')||''; const m=/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd); if(m) name=decodeURIComponent(m[1]);
+        type=(res.headers.get('content-type')||'').split(';')[0].trim().toLowerCase(); const cd=res.headers.get('content-disposition')||''; const m=/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd); if(m&&!name) name=decodeURIComponent(m[1]);
         const total=Number(res.headers.get('content-length')||0); const rd=res.body.getReader(); const parts=[]; let got=0;
         for(;;){ const r=await rd.read(); if(r.done) break; parts.push(r.value); got+=r.value.length; const pct=total?got/total*100:null; if(pct!=null) fill.style.width=Math.min(100,pct)+'%'; const secs=(Date.now()-t0)/1000, sp=got/Math.max(1,secs); txt.textContent=(pct!=null?Math.floor(pct)+'% · ':'')+fmt(got)+(total?' of '+fmt(total):'')+(total&&sp>0?' · about '+Math.max(1,Math.round((total-got)/sp))+' s left':''); }
         blob=new Blob(parts,{type:type||'application/octet-stream'});
       }catch(e){
         if(e&&e.name==='AbortError') throw e;
         const H=(typeof Native!=='undefined')&&Native.app()?Native.P('CapacitorHttp'):null; if(!H) throw new Error('The site does not allow downloads inside Blitz (or the link is wrong).');
-        txt.textContent='Trying another way…'; const r=await H.request({url:u,method:'GET',responseType:'blob'}); if(!r||r.status>=400||!r.data) throw new Error('The site refused the download.');
+        txt.textContent='Trying another way…'; const hd={}; if(opt.cookie) hd.Cookie=opt.cookie; if(opt.ua) hd['User-Agent']=opt.ua;
+        const r=await H.request({url:u,method:'GET',headers:hd,responseType:'blob'}); if(!r||r.status>=400||!r.data) throw new Error('The site refused the download.');
         type=String((r.headers&&(r.headers['Content-Type']||r.headers['content-type']))||'').split(';')[0].trim().toLowerCase(); const bin=atob(r.data); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); blob=new Blob([arr],{type:type||'application/octet-stream'});
       }
       if(!name){ try{ name=decodeURIComponent(new URL(u).pathname.split('/').pop()||''); }catch(e){} }
@@ -13061,12 +13091,15 @@ const Browse = {
       fill.style.width='100%'; txt.textContent='Done. Adding to My Media…';
       const file=new File([blob],name,{type:type||(/\.(mp3|m4a|aac|ogg|opus|wav|flac)$/i.test(name)?'audio/mpeg':'video/mp4')});
       await Player.addFiles([file]); txt.textContent='✅ Added to My Media. Open the 🎬 My Media tab to play it.'; UI.toast('Added to My Media','ok');
-    }catch(e){ if(e&&e.name==='AbortError') txt.textContent='Cancelled.'; else{ txt.textContent=(e&&e.message)||'The download failed.'; } fill.style.width='0%'; }
-    finally{ this._dling=false; this._dlAbort=null; gb.disabled=false; cb.classList.add('hidden'); }
+    }catch(e){ if(e&&e.name==='AbortError') txt.textContent='Cancelled.'; else{ txt.textContent=(e&&e.message)||'The download failed.'; if(!hasUI) UI.toast(txt.textContent,'err'); } fill.style.width='0%'; }
+    finally{ this._dling=false; this._dlAbort=null; if(hasUI){ gb.disabled=false; cb.classList.add('hidden'); } }
   }
 };
 
 const PATCH_NOTES = [
+  {ver:'4.1', label:'Browser', items:[
+    'A real in-app browser (Feed → 🌐 Browse): opens on top of Blitz with back, forward, reload, an address bar that also searches, full screen video and your normal websites and YouTube. Video and song downloads offered by a page can go straight into My Media. Needs the updated app build'
+  ]},
   {ver:'4.0', label:'Lab', items:[
     'Code Lab (Feed → 🧪 Code Lab): a beginner HTML editor with a live preview, a retro AI HELP on/off switch (suggests your next line, fixes mistakes, explains tags in simple words), an “idea to code” box, 6 lessons and saved projects. A Python mode runs real Python with sympy and numpy',
     'Browse (Feed → 🌐 Browse): open sites and watch YouTube links inside Blitz with a full-screen button, and download direct video or song links into My Media with a progress bar'
