@@ -2718,7 +2718,7 @@ html[data-theme="dark"] .rem-form input,html[data-theme="dark"] .why-card input[
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '3.7.1', label: 'Sign-in' };
+const BLITZ_VERSION = { number: '3.8', label: 'Progress' };
 
 const Utils = {
   uid(prefix){
@@ -12738,16 +12738,48 @@ Object.assign(Extras,{
       line.textContent='✅ Ready. "'+want+'" is loaded and will stay in memory for 30 minutes (took '+Math.round((Date.now()-t0)/1000)+'s), so replies start fast.';
     }catch(e){ line.textContent='Ollama is running, but loading the model took too long. Try again in a minute.'; }
   },
+  _bar(show,pct,label){
+    let b=document.getElementById('ofBar'); const line=document.getElementById('ofLine');
+    if(!b&&line){ b=document.createElement('div'); b.id='ofBar'; b.style.cssText='margin:6px 0 10px;display:none;'; b.innerHTML='<div style="height:12px;border-radius:8px;background:rgba(127,127,127,.25);overflow:hidden;"><div id="ofBarFill" style="height:100%;width:0;background:var(--accent,#e6b422);transition:width .3s;"></div></div><div class="hint" id="ofBarTxt" style="margin-top:4px;display:flex;justify-content:space-between;gap:8px;"><span id="ofBarLbl"></span><a href="#" id="ofBarCancel" style="color:inherit;text-decoration:underline;">Cancel</a></div>'; line.insertAdjacentElement('afterend',b); }
+    if(!b) return; b.style.display=show?'block':'none';
+    const f=document.getElementById('ofBarFill'); if(f&&pct!=null) f.style.width=Math.max(0,Math.min(100,pct))+'%';
+    const l=document.getElementById('ofBarLbl'); if(l&&label!=null) l.textContent=label;
+  },
+  /* Downloads a model straight through Ollama's own web address, so Blitz can show a real progress bar. */
   async ollamaDownload(name,line){
     Config.state.localLLM.model=name; Config.save(); try{ UI.el.cfgLocalLLMModel.value=name; UI.renderLocalLLMStatus(); }catch(e){}
-    if(!Native.app()){ const ok=await Utils.copyToClipboard('ollama pull '+name); UI.toast(ok?'Model set. "ollama pull '+name+'" copied: paste it in Termux (once).':'Model set. In Termux run: ollama pull '+name); Utils.tryOpenTermux(); return; }
+    if(this._pulling){ UI.toast('A download is already running'); return; }
     const had=await this.ollamaTags(); if(had&&had.some(n=>n===name||n===name+':latest')){ UI.toast(name+' is already on your phone. Now using it.'); this.renderInstalled(had); return; }
-    line.textContent='Starting the download of '+name+'…';
-    const started=await this.termuxOrPaste(this.OLLAMA_ENV+'pgrep -x ollama >/dev/null || (nohup ollama serve >/dev/null 2>&1 &); sleep 4; ollama pull '+name,line);
-    if(!started) return;
-    const t0=Date.now(); this._dl=(this._dl||0)+1; const me=this._dl;
-    for(let k=0;k<240;k++){ await new Promise(r=>setTimeout(r,5000)); if(me!==this._dl) return; const names=await this.ollamaTags(); if(names&&names.some(n=>n===name||n===name+':latest')){ line.textContent='✅ '+name+' is on your phone. Tap “Check my setup” to load it.'; this.renderInstalled(names); UI.toast(name+' downloaded'); return; } line.textContent='Downloading '+name+'… '+Math.round((Date.now()-t0)/1000)+'s. This can take a few minutes. You can keep using Blitz.'; }
-    line.textContent='The download is taking very long. Check your internet, then tap Download again.';
+    let names=await this.ollamaEnsure(line);
+    if(names===undefined) return;
+    if(!names){ line.textContent=Native.app()?'Could not start the local AI, so I cannot download yet. Tap “Check my setup” first.':'Cannot reach Ollama. Start it, then tap Download again.'; return; }
+    this._pulling=true; const ac=new AbortController(); this._pullAbort=ac; const base=this._obase(); const t0=Date.now();
+    this._bar(true,0,'Starting…'); const cx=document.getElementById('ofBarCancel'); if(cx) cx.onclick=(e)=>{ e.preventDefault(); ac.abort(); };
+    line.textContent='Downloading '+name+'. Keep Blitz open until it finishes.';
+    const fmt=(n)=>n>=1e9?(n/1e9).toFixed(2)+' GB':(n/1e6).toFixed(0)+' MB';
+    try{
+      const res=await fetch(base+'/api/pull',{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({model:name,name:name,stream:true})});
+      if(!res.ok||!res.body) throw new Error('bad answer '+res.status);
+      const rd=res.body.getReader(); const dec=new TextDecoder(); let buf='', done=false, ok=false; const layers={};
+      while(!done){
+        const r=await rd.read(); done=r.done; buf+=dec.decode(r.value||new Uint8Array(),{stream:!done}); let k;
+        while((k=buf.indexOf('\n'))>=0){ const ln=buf.slice(0,k).trim(); buf=buf.slice(k+1); if(!ln) continue; let j; try{ j=JSON.parse(ln); }catch(e){ continue; }
+          if(j.error) throw new Error(j.error);
+          if(j.digest&&j.total){ layers[j.digest]={t:j.total,c:j.completed||0}; }
+          let T=0,C=0; Object.keys(layers).forEach(d=>{ T+=layers[d].t; C+=layers[d].c; });
+          const st=j.status||''; if(st==='success') ok=true;
+          if(T>0){ const pct=C/T*100, secs=(Date.now()-t0)/1000, speed=C/Math.max(1,secs), eta=speed>0?Math.round((T-C)/speed):0; this._bar(true,pct,Math.floor(pct)+'% · '+fmt(C)+' of '+fmt(T)+(eta?' · about '+(eta>90?Math.round(eta/60)+' min':eta+' s')+' left':'')); }
+          else this._bar(true,null,st||'Working…');
+        }
+      }
+      names=await this.ollamaTags(); const has=names&&names.some(n=>n===name||n===name+':latest');
+      if(ok||has){ this._bar(true,100,'100% · done'); line.textContent='✅ '+name+' is on your phone. Tap “Check my setup & load model” to load it.'; this.renderInstalled(names||[]); UI.toast(name+' downloaded'); setTimeout(()=>this._bar(false),2500); }
+      else throw new Error('The download stopped early');
+    }catch(e){
+      this._bar(false);
+      if(e&&e.name==='AbortError') line.textContent='Download cancelled. Tap Download to continue later; it picks up where it stopped.';
+      else line.textContent='The download did not finish ('+(e&&e.message||'error')+'). Check your internet and tap Download again; it picks up where it stopped.';
+    }finally{ this._pulling=false; this._pullAbort=null; }
   },
   async ollamaWarm(){ try{ const L=Config.state.localLLM; if(!L||!L.enabled||this._warmed) return; this._warmed=true; const base=String(L.baseUrl||'').replace(/\/+$/,''); fetch(base+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:L.model,prompt:'',keep_alive:'30m',stream:false})}).catch(()=>{}); }catch(e){} },
   injectSettingsF(){
@@ -12795,6 +12827,12 @@ Object.assign(Extras,{
 });
 
 const PATCH_NOTES = [
+  {ver:'3.8', label:'Progress', items:[
+    'Model downloads now show a real progress bar with size, percent and time left, and a Cancel link. Downloads pick up where they stopped'
+  ]},
+  {ver:'3.8', label:'Progress', items:[
+    'Model downloads now show a real progress bar with percent, size and speed, and resume where they stopped if your internet drops'
+  ]},
   {ver:'3.7', label:'Sign-in', items:[
     'Google sign-in (Gmail and YouTube) now works inside the Android app: it opens Google in your browser and brings you back to Blitz when done'
   ]},
