@@ -1820,6 +1820,44 @@ html[data-theme="dark"] .rem-form input,html[data-theme="dark"] .why-card input[
 .ws-item{position:relative;}
 .sp-star{position:absolute;right:0;top:6px;width:34px;height:34px;border:none;background:none;font-size:19px;color:var(--accent-deep,#b8890e);}
 .ws-res .ws-site{padding-right:30px;}
+
+/* ---- Code Lab + Browse (v4.0) ---- */
+.lab-wrap{display:flex;flex-direction:column;gap:10px;margin-bottom:24px;}
+.lab-swrow{display:flex;align-items:center;gap:12px;padding:8px 2px;}
+.lab-sw{position:relative;width:68px;height:34px;border-radius:7px;background:linear-gradient(#3a3a3a,#1e1e1e);border:2px solid #0d0d0d;box-shadow:inset 0 3px 6px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.45);cursor:pointer;flex:none;}
+.lab-sw i{position:absolute;top:3px;left:3px;width:29px;height:24px;border-radius:5px;background:linear-gradient(#efe7cf,#b8ad8a);border:1px solid #6b6244;box-shadow:0 3px 4px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.7);transition:left .15s;}
+.lab-sw.on i{left:33px;}
+.lab-sw b{position:absolute;top:50%;transform:translateY(-50%);font:700 9px/1 ui-monospace,Menlo,monospace;letter-spacing:.6px;}
+.lab-sw .o{right:7px;color:#8a8a8a;}.lab-sw .n{left:7px;color:#7dff7d;opacity:0;}
+.lab-sw.on .n{opacity:1;}.lab-sw.on .o{opacity:0;}
+.lab-lamp{width:12px;height:12px;border-radius:50%;background:#553;box-shadow:inset 0 1px 2px rgba(0,0,0,.6);flex:none;}
+.lab-lamp.on{background:#7dff7d;box-shadow:0 0 10px #7dff7d,inset 0 1px 2px rgba(255,255,255,.6);}
+.lab-swl{display:flex;flex-direction:column;font-size:12px;line-height:1.25;}
+.lab-swl b{font-family:ui-monospace,Menlo,monospace;letter-spacing:1px;font-size:13px;}
+.lab-swl span{opacity:.7;}
+.lab-idea textarea,.lab-ed,.brw-bar input,.brw-dl input{width:100%;box-sizing:border-box;border-radius:10px;border:1px solid rgba(127,127,127,.4);background:rgba(255,255,255,.55);color:inherit;padding:10px;font:inherit;}
+html[data-theme="dark"] .lab-idea textarea,html[data-theme="dark"] .lab-ed,html[data-theme="dark"] .brw-bar input,html[data-theme="dark"] .brw-dl input{background:rgba(0,0,0,.3);}
+.lab-idea{display:flex;flex-direction:column;gap:8px;}
+.lab-ed{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;line-height:1.45;min-height:200px;resize:vertical;tab-size:2;white-space:pre;overflow:auto;}
+.lab-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;}
+.lab-chip{flex:none;border:1px solid rgba(127,127,127,.4);background:rgba(255,255,255,.4);color:inherit;border-radius:999px;padding:5px 11px;font-size:12px;cursor:pointer;}
+.lab-sug{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-radius:10px;background:rgba(125,255,125,.14);border:1px dashed rgba(60,160,60,.6);font-size:12px;}
+.lab-sug code{flex:1;min-width:120px;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;}
+.lab-acts{display:flex;flex-wrap:wrap;gap:6px;}
+.lab-res .lab-rt,.brw-dl .lab-rt{font-weight:700;margin-bottom:6px;}
+.lab-rp{white-space:pre-wrap;font-size:13px;line-height:1.5;margin-bottom:8px;}
+.lab-pvh{font-size:12px;opacity:.7;margin-top:4px;}
+.lab-frame{width:100%;height:320px;border:1px solid rgba(127,127,127,.4);border-radius:10px;background:#fff;}
+.lab-out{margin:0;padding:10px;border-radius:10px;background:#0f0f14;color:#d6ffd6;font:12px/1.5 ui-monospace,Menlo,monospace;white-space:pre-wrap;min-height:70px;max-height:300px;overflow:auto;}
+.brw-bar{display:flex;gap:8px;}.brw-bar input{flex:1;}
+.brw-wrap{display:flex;flex-direction:column;gap:6px;}
+.brw-tb{display:flex;gap:6px;flex-wrap:wrap;}
+.brw-frame{width:100%;height:62vh;border:1px solid rgba(127,127,127,.4);border-radius:10px;background:#fff;}
+.brw-wrap.brw-full{position:fixed;inset:0;z-index:9999;background:#000;padding:6px;}
+.brw-wrap.brw-full .brw-frame{flex:1;height:auto;border-radius:0;}
+.brw-pb{margin:8px 0;}.brw-pbo{height:12px;border-radius:8px;background:rgba(127,127,127,.25);overflow:hidden;}
+.brw-pbi{height:100%;width:0;background:var(--accent,#e6b422);transition:width .3s;}
+.brw-dl{display:flex;flex-direction:column;gap:8px;}
 </style>
 </head>
 <body>
@@ -2718,7 +2756,7 @@ html[data-theme="dark"] .rem-form input,html[data-theme="dark"] .why-card input[
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '3.8', label: 'Progress' };
+const BLITZ_VERSION = { number: '4.0', label: 'Lab' };
 
 const Utils = {
   uid(prefix){
@@ -9919,8 +9957,10 @@ const Player = {
     subs.forEach(sf=>{ const b=sf.name.replace(/\.[a-z0-9]{2,4}$/i,'').replace(/\.[a-z]{2,3}$/i,'').toLowerCase(); const it=this.q.find(x=>x.kind==='video'&&x.name.replace(/\.[a-z0-9]{2,4}$/i,'').toLowerCase()===b)||this.q.find(x=>x.kind==='video'&&b.indexOf(x.name.replace(/\.[a-z0-9]{2,4}$/i,'').toLowerCase())===0); if(it) this.attachSub(it,sf); });
     this.trimMeta(); Config.save(); this.render();
     UI.toast('Added '+added+' file'+(added===1?'':'s'));
+    const kp=this.keepAll(fresh);
     let found=0; for(const it of fresh){ if(it.ai) continue; if(await this.identify(it)) found++; this.render(); await new Promise(r=>setTimeout(r,350)); }
     if(found) UI.toast('🎌 Recognised '+found+' anime. I will track them in your list as you watch.');
+    await kp;
   },
   trimMeta(){ const M=this.meta(), ks=Object.keys(M); if(ks.length>300){ ks.sort((a,b)=>(M[a].t||0)-(M[b].t||0)).slice(0,ks.length-300).forEach(k=>delete M[k]); } },
   async attachSub(it,sf){
@@ -9931,7 +9971,25 @@ const Player = {
   /* ---------- saved copies (so they play after you close Blitz) ---------- */
   _db(){ return new Promise((res,rej)=>{ const r=indexedDB.open('blitz_media',1); r.onupgradeneeded=()=>r.result.createObjectStore('files',{keyPath:'id'}); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); },
   async _tx(mode,fn){ const db=await this._db(); return new Promise((res,rej)=>{ const t=db.transaction('files',mode); const st=t.objectStore('files'); const r=fn(st); t.oncomplete=()=>res(r&&r.result); t.onerror=()=>rej(t.error); }); },
-  async keep(it){ try{ if(!it.file) return; await this._tx('readwrite',s=>s.put({id:it.fid,blob:it.file,name:it.name,type:it.file.type})); this.meta()[it.fid].kept=true; it.kept=true; Config.save(); UI.toast('Saved inside Blitz. It will play even after you close the app.'); this.render(); }catch(e){ UI.toast('Could not save (storage full?)','err'); } },
+  async keep(it,quiet){
+    try{
+      if(!it.file||it.kept) return true;
+      try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+      it.saving=true; if(!quiet) this.render();
+      await this._tx('readwrite',s=>s.put({id:it.fid,blob:it.file,name:it.name,type:it.file.type}));
+      this.meta()[it.fid].kept=true; it.kept=true; it.saving=false; Config.save();
+      if(!quiet){ UI.toast('Saved inside Blitz. It will play even after you close the app.'); this.render(); }
+      return true;
+    }catch(e){ it.saving=false; if(!quiet){ UI.toast('Could not save (storage full?)','err'); this.render(); } return false; }
+  },
+  /* Saves a copy of everything just added, one by one, so it is still here after Blitz is closed. */
+  async keepAll(list){
+    if(Config.state.plyAutoKeep===false) return;
+    const todo=list.filter(x=>x.file&&!x.kept); if(!todo.length) return;
+    let ok=0, bad=0; UI.toast('Saving '+todo.length+' file'+(todo.length===1?'':'s')+' inside Blitz so they stay after you close the app…');
+    for(const it of todo){ this.render(); if(await this.keep(it,true)) ok++; else bad++; this.render(); }
+    UI.toast(bad?('Saved '+ok+'. '+bad+' could not be saved (storage full?). Free some space and add them again.'):('✅ Saved '+ok+' inside Blitz. They will still be here when you reopen the app.'), bad?'err':'ok');
+  },
   async loadKept(){
     if(this._kept) return; this._kept=true;
     try{ const keys=await this._tx('readonly',s=>s.getAllKeys()); const M=this.meta(); (keys||[]).forEach(k=>{ const m=M[k]; if(!m||this.q.find(x=>x.fid===k)) return; this.q.push({fid:k,name:m.name,file:null,url:'',kind:m.kind,title:m.title,ep:m.ep,size:m.size,ai:m.ai||null,sub:null,kept:true}); }); }catch(e){}
@@ -9962,7 +10020,7 @@ const Player = {
     const a=document.createElement('div'); a.className='ply-main'; const av=!!(it.file||it.kept);
     const th=document.createElement('div'); th.className='ply-th'; if(it.ai&&it.ai.thumb){ const x=document.createElement('img'); x.src=it.ai.thumb; x.alt=''; th.appendChild(x); } else th.textContent=it.kind==='audio'?'🎵':'🎬';
     const bd=document.createElement('div'); bd.className='fc-body'; const t=document.createElement('div'); t.className='fc-title'; t.textContent=it.ai?it.ai.title+(it.ep?' · Ep '+it.ep:''):(it.title+(it.ep?' · Ep '+it.ep:''));
-    const mt=document.createElement('div'); mt.className='fc-meta'; mt.textContent=(it.ai?'🎌 Anime · ':'')+(av?'':'file not here, add it again · ')+(it.kept?'saved in Blitz · ':'')+(it.size?Math.round(it.size/1048576)+' MB':'')+(M.dur?' · '+this.fmt(M.dur):'');
+    const mt=document.createElement('div'); mt.className='fc-meta'; mt.textContent=(it.ai?'🎌 Anime · ':'')+(av?'':'file not here, add it again · ')+(it.saving?'saving a copy… · ':'')+(it.kept?'saved in Blitz · ':'')+(it.size?Math.round(it.size/1048576)+' MB':'')+(M.dur?' · '+this.fmt(M.dur):'');
     bd.appendChild(t); bd.appendChild(mt); a.appendChild(th); a.appendChild(bd); card.appendChild(a);
     if(M.dur){ const pr=document.createElement('div'); pr.className='lib-bar ply-bar'; const f=document.createElement('i'); f.style.width=Math.min(100,Math.round(M.pos/M.dur*100))+'%'; pr.appendChild(f); card.appendChild(pr); }
     const act=document.createElement('div'); act.className='lib-act';
@@ -10109,6 +10167,8 @@ Object.assign(UI, {
     {id:'manhwa', label:'Manhwa'},
     {id:'manhua', label:'Manhua'},
     {id:'player', label:'🎬 My Media'},
+    {id:'code', label:'🧪 Code Lab'},
+    {id:'browse', label:'🌐 Browse'},
     {id:'youtube', label:'YouTube'},
     {id:'wikipedia', label:'Wikipedia'}
   ],
@@ -10182,6 +10242,8 @@ Object.assign(UI, {
     this._feedReqId = (this._feedReqId||0) + 1;
     const myReq = this._feedReqId; // guards against a slower, older tab's response landing after a newer tab switch
     if(id==='player'){ Player.showTab(); return; }
+    if(id==='code'){ Lab.show(); return; }
+    if(id==='browse'){ Browse.show(); return; }
     const tool = Tools.get(id);
     if(override===undefined && typeof Lib!=='undefined' && Lib.has(id)){ Lib.showTab(id, myReq); return; }
     if(!tool.available()){
@@ -12808,7 +12870,7 @@ Object.assign(Extras,{
   injectSettingsG(){
     const look=document.getElementById('extrasLook'); if(!look||document.getElementById('appBox')) return;
     const d=document.createElement('div'); d.id='appBox'; const app=Native.app();
-    d.innerHTML='<div class="section-label">Blitz app</div><div class="hint" id="appLine" style="margin-bottom:8px;"></div><div class="btn-row" style="margin-bottom:10px;"></div><div class="row-between field"><div><label style="margin:0;">Video player goes full screen</label></div><label class="switch"><input type="checkbox" id="cfgPlyFull"><span class="track"></span><span class="knob"></span></label></div>';
+    d.innerHTML='<div class="section-label">Blitz app</div><div class="hint" id="appLine" style="margin-bottom:8px;"></div><div class="btn-row" style="margin-bottom:10px;"></div><div class="row-between field"><div><label style="margin:0;">Video player goes full screen</label></div><label class="switch"><input type="checkbox" id="cfgPlyFull"><span class="track"></span><span class="knob"></span></label></div><div class="row-between field"><div><label style="margin:0;">Keep my videos and songs inside Blitz</label><div class="hint">Saves a copy when you add them so they are still here after you close the app. Uses phone storage; Remove frees it.</div></div><label class="switch"><input type="checkbox" id="cfgPlyKeep"><span class="track"></span><span class="knob"></span></label></div>';
     d.querySelector('#appLine').textContent=app?'✅ You are in the Blitz app. Reminders ring even when Blitz is closed, /alarm sets real alarms, and the brightness and volume gestures change your real phone settings.':'You are in the browser. In the Blitz app, reminders ring even when closed, and you get real alarms, brightness and volume.';
     const row=d.querySelector('.btn-row'); row.style.flexWrap='wrap';
     if(app){ [['Start local AI',async()=>{ const r=await Native.termux('export OLLAMA_ORIGINS=* OLLAMA_KEEP_ALIVE=30m OLLAMA_NUM_PARALLEL=1 OLLAMA_MAX_LOADED_MODELS=1; pgrep -x ollama >/dev/null || (nohup ollama serve >/dev/null 2>&1 &)'); UI.toast(r.ok?'Starting your local AI… give it a few seconds':r.msg, r.ok?'':'err'); }],
@@ -12816,7 +12878,7 @@ Object.assign(Extras,{
       ['Allow exact alarms',async()=>{ const r=await Native.exactAlarms(); UI.toast(r==='granted'?'Already allowed':r==='asked'?'Switch on “Alarms & reminders” for Blitz':'Not needed on this phone'); }],
       ['Test notification (10s)',async()=>{ const r={id:'t'+Date.now(),text:'Test from Blitz',at:Date.now()+10000,fired:false}; const ok=await Native.schedule(r); UI.toast(ok?'Close Blitz and wait 10 seconds':'Notifications are blocked. Allow them in Android settings.'); }]].forEach(a=>{ const b=document.createElement('button'); b.className='btn'; b.type='button'; b.textContent=a[0]; b.onclick=a[1]; row.appendChild(b); }); } else row.remove();
     if(app){ const h=document.createElement('div'); h.className='hint'; h.style.marginBottom='10px'; h.innerHTML='One-time setup for “Start local AI”: open Termux and run <code>mkdir -p ~/.termux &amp;&amp; echo "allow-external-apps=true" &gt;&gt; ~/.termux/termux.properties</code>, then close Termux completely. After that Blitz can start and stop Ollama for you with one tap.'; d.appendChild(h); }
-    look.appendChild(d); const cb=d.querySelector('#cfgPlyFull'); cb.checked=Config.state.plyFull!==false; cb.onchange=()=>{ Config.state.plyFull=cb.checked; Config.save(); };
+    look.appendChild(d); const cb=d.querySelector('#cfgPlyFull'); cb.checked=Config.state.plyFull!==false; cb.onchange=()=>{ Config.state.plyFull=cb.checked; Config.save(); }; const ck=d.querySelector('#cfgPlyKeep'); ck.checked=Config.state.plyAutoKeep!==false; ck.onchange=()=>{ Config.state.plyAutoKeep=ck.checked; Config.save(); };
   },
   initF(){
     this._t(()=>this.injectSettingsF()); this._t(()=>this.injectSettingsF2());
@@ -12826,7 +12888,192 @@ Object.assign(Extras,{
   }
 });
 
+/* ================= CODE LAB + BROWSE (v4.0) ================= */
+const Lab = {
+  PY_URL:'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/',
+  st(){ const c=Config.state; c.lab=c.lab||{}; const L=c.lab; if(L.code==null) L.code=''; if(L.py==null) L.py=''; if(L.ai==null) L.ai=true; if(!L.mode) L.mode='html'; L.projects=L.projects||{}; return L; },
+  _sv(){ clearTimeout(this._svT); this._svT=setTimeout(()=>{ try{ Config.save(); }catch(e){} },700); },
+  h(tag,cls,txt){ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; },
+  btn(txt,fn,on){ const b=this.h('button','btn sm'+(on?' primary':''),txt); b.type='button'; b.onclick=fn; return b; },
+  LESSONS:[
+    {t:'1 · Your first page', c:'<!-- Everything on a web page lives inside <html> -->\n<html>\n  <body>\n    <!-- h1 = the biggest heading -->\n    <h1>Hello, I made a web page!</h1>\n    <!-- p = a paragraph of text -->\n    <p>This is my very first page.</p>\n  </body>\n</html>\n'},
+    {t:'2 · Headings and text', c:'<h1>My Page</h1>\n<h2>A smaller heading</h2>\n<p>Normal text. <b>Bold</b> and <i>italic</i> words.</p>\n<hr> <!-- a line across the page -->\n<p>Try changing the words and watch the preview.</p>\n'},
+    {t:'3 · Links and pictures', c:'<!-- a = a link. href = where it goes -->\n<a href="https://en.wikipedia.org">Go to Wikipedia</a>\n<br><br>\n<!-- img = a picture. src = the picture address -->\n<img src="https://placehold.co/200x120" alt="a grey box">\n'},
+    {t:'4 · Lists', c:'<h2>My favourite anime</h2>\n<!-- ul = list with dots, li = one item -->\n<ul>\n  <li>Frieren</li>\n  <li>Naruto</li>\n  <li>Your pick here</li>\n</ul>\n<h2>Steps</h2>\n<!-- ol = numbered list -->\n<ol>\n  <li>Write code</li>\n  <li>See the result</li>\n</ol>\n'},
+    {t:'5 · Colours and style (CSS)', c:'<style>\n  /* CSS says how things look */\n  body { background: #14121f; color: white; font-family: sans-serif; text-align: center; }\n  h1 { color: gold; }\n  .card { background: #2a2540; padding: 16px; border-radius: 12px; margin: 12px; }\n</style>\n<h1>Styled page</h1>\n<div class="card">This box has rounded corners.</div>\n'},
+    {t:'6 · A button that does something', c:'<button onclick="say()">Tap me</button>\n<p id="msg">Nothing yet…</p>\n<script>\n  // JavaScript makes the page do things\n  function say() {\n    document.getElementById("msg").textContent = "You tapped it! 🎉";\n  }\n<\/script>\n'}
+  ],
+  SNIP:[['Heading','<h1>Heading</h1>\n'],['Text','<p>Your text</p>\n'],['Link','<a href="https://">link</a>\n'],['Image','<img src="https://placehold.co/200x120" alt="">\n'],['List','<ul>\n  <li>One</li>\n  <li>Two</li>\n</ul>\n'],['Button','<button>Click</button>\n'],['Box','<div style="padding:12px;background:#eee;">box</div>\n'],['Style','<style>\n  body { font-family: sans-serif; }\n</style>\n']],
+  PYEX:[
+    ['Maths with sympy','from sympy import symbols, solve, diff\nx = symbols("x")\nprint("Solve x**2 - 4 = 0 :", solve(x**2 - 4, x))\nprint("Slope of x**3 :", diff(x**3, x))\n'],
+    ['numpy','import numpy as np\na = np.array([3, 5, 8, 13])\nprint("average:", a.mean())\nprint("double:", a * 2)\n'],
+    ['Plain Python','for i in range(1, 6):\n    print(i, "squared is", i * i)\n']
+  ],
+  async ai(system,user,max){
+    max=max||900; const contents=[{role:'user',parts:[{text:user}]}];
+    try{
+      if(GeminiProvider.isConfigured() && navigator.onLine!==false){ const r=await GeminiProvider.generate({contents,systemInstructionText:system,temperature:0.3,maxOutputTokens:max}); if(r&&r.ok) return {ok:true,text:String(r.text||'').trim()}; }
+      if(LocalLLMProvider.isConfigured()){ const r=await LocalLLMProvider.generate({contents,systemInstructionText:system,temperature:0.3,maxOutputTokens:max}); if(r&&r.ok) return {ok:true,text:String(r.text||'').trim()}; return {ok:false,message:(r&&r.message)||'Your local AI did not answer.'}; }
+    }catch(e){}
+    return {ok:false,message:'AI help needs internet and a Gemini key (Settings → Gemini), or your local AI running.'};
+  },
+  clean(t){ const m=/```[a-zA-Z]*\n?([\s\S]*?)```/.exec(t||''); return (m?m[1]:String(t||'')).replace(/^\s+|\s+$/g,''); },
+  /* ---------- the screen ---------- */
+  show(){
+    if(UI.activeFeedTab!=='code') return; const body=UI.el.feedBody; if(!body) return; body.innerHTML=''; UI.el.feedReason.classList.add('hidden');
+    const L=this.st(), h=this.h.bind(this);
+    const head=h('div','lib-head'); head.style.setProperty('--h',160);
+    head.innerHTML='<div class="lib-stat"><b>🧪 Code Lab</b><span>Learn HTML with an AI helper, and run Python with real maths libraries</span></div><div class="lib-tools"></div>';
+    const tools=head.querySelector('.lib-tools'); const bH=h('button',L.mode==='html'?'on':'','HTML'), bP=h('button',L.mode==='py'?'on':'','Python'); bH.type=bP.type='button';
+    bH.onclick=()=>{ L.mode='html'; this._sv(); this.show(); }; bP.onclick=()=>{ L.mode='py'; this._sv(); this.show(); }; tools.appendChild(bH); tools.appendChild(bP); body.appendChild(head);
+    if(L.mode==='py') this.pyView(body); else this.htmlView(body);
+  },
+  htmlView(body){
+    const L=this.st(), h=this.h.bind(this); const wrap=h('div','lab-wrap'); body.appendChild(wrap);
+    /* retro AI switch */
+    const sr=h('div','lab-swrow'); const sw=h('div','lab-sw'+(L.ai?' on':'')); sw.id='labSw'; sw.setAttribute('role','switch'); sw.tabIndex=0; sw.innerHTML='<b class="n">ON</b><b class="o">OFF</b><i></i>';
+    const lab=h('div','lab-swl'); lab.innerHTML='<b>AI HELP</b><span></span>'; const sub=lab.querySelector('span'); const lamp=h('span','lab-lamp'+(L.ai?' on':'')); sr.appendChild(sw); sr.appendChild(lamp); sr.appendChild(lab);
+    const paint=()=>{ sw.classList.toggle('on',!!L.ai); lamp.classList.toggle('on',!!L.ai); sw.setAttribute('aria-checked',L.ai?'true':'false'); sub.textContent=L.ai?'suggests your next line, fixes mistakes, explains tags':'off — plain editor, works with no internet'; if(!L.ai) hideSug(); };
+    wrap.appendChild(sr);
+    /* idea box */
+    const idea=h('div','field lab-idea'); const ta=h('textarea'); ta.id='labIdea'; ta.rows=2; ta.placeholder='Describe your idea in your own words… e.g. “a page with my name, a photo and a blue button”';
+    const mk=this.btn('✨ Turn my idea into code',async()=>{ const q=ta.value.trim(); if(!q){ UI.toast('Write your idea first','err'); return; }
+      mk.disabled=true; const old=mk.textContent; mk.textContent='Writing…';
+      const r=await this.ai('You write HTML for a complete beginner who is learning. Use the simplest possible tags. Put a short plain-English comment above each part explaining what it does. Use inline <style> only if the idea needs colours. No outside libraries or links to scripts. Reply with ONLY the code in one code block.','Idea: '+q,1400);
+      mk.disabled=false; mk.textContent=old; if(!r.ok){ UI.toast(r.message,'err'); return; }
+      const code=this.clean(r.text); if(!code){ UI.toast('The AI sent nothing. Try again.','err'); return; }
+      if(ed.value.trim() && window.confirm('Replace what you have with the new code?\nOK = replace, Cancel = add it at the end')) ed.value=code; else ed.value=(ed.value.trim()?ed.value.replace(/\s+$/,'')+'\n\n':'')+code+'\n';
+      L.code=ed.value; this._sv(); run(); UI.toast('Done. Read the comments, then change things and watch the preview.'); },true);
+    idea.appendChild(ta); idea.appendChild(mk); wrap.appendChild(idea);
+    /* snippet chips */
+    const chips=h('div','lab-chips'); this.SNIP.forEach(s=>{ const c=h('button','lab-chip',s[0]); c.type='button'; c.onclick=()=>{ insert(s[1]); }; chips.appendChild(c); }); wrap.appendChild(chips);
+    /* editor */
+    const ed=h('textarea','lab-ed'); ed.id='labCode'; ed.spellcheck=false; ed.autocapitalize='none'; ed.setAttribute('autocorrect','off'); ed.rows=12; ed.placeholder='Write HTML here, or pick a lesson, or use the idea box above.'; ed.value=L.code; wrap.appendChild(ed);
+    const sug=h('div','lab-sug hidden'); sug.innerHTML='<span>💡 Next line:</span><code></code>'; const sIns=this.btn('Insert',()=>{ insert(sug.querySelector('code').textContent); hideSug(); },true), sNo=this.btn('✕',()=>hideSug()); sug.appendChild(sIns); sug.appendChild(sNo); wrap.appendChild(sug);
+    const res=h('div','field lab-res hidden'); wrap.appendChild(res);
+    const showRes=(title,text,apply)=>{ res.classList.remove('hidden'); res.textContent=''; const t=h('div','lab-rt',title); const p=h('div','lab-rp'); p.textContent=text; res.appendChild(t); res.appendChild(p); const row=h('div','btn-row'); if(apply) row.appendChild(this.btn('Use this code',()=>{ ed.value=apply; L.code=ed.value; this._sv(); run(); res.classList.add('hidden'); },true)); row.appendChild(this.btn('Close',()=>res.classList.add('hidden'))); res.appendChild(row); res.scrollIntoView({block:'nearest'}); };
+    /* actions */
+    const acts=h('div','lab-acts');
+    acts.appendChild(this.btn('▶ Run',()=>run(),true));
+    acts.appendChild(this.btn('🩹 Fix my code',async()=>{ if(!L.ai){ UI.toast('Turn AI HELP on first','err'); return; } if(!ed.value.trim()){ UI.toast('Nothing to fix yet','err'); return; } UI.toast('Checking your code…'); const r=await this.ai('You fix mistakes in HTML for a beginner. First give the full corrected code in ONE code block. After it, a short list called "What I changed" in very simple words. If the code is already fine, say so and return it unchanged.',ed.value,1600); if(!r.ok){ UI.toast(r.message,'err'); return; } const code=this.clean(r.text), why=r.text.replace(/```[a-zA-Z]*\n?[\s\S]*?```/,'').trim(); showRes('🩹 Fix',why||'Done.',code); }));
+    acts.appendChild(this.btn('🎓 Explain',async()=>{ if(!L.ai){ UI.toast('Turn AI HELP on first','err'); return; } const sel=ed.value.slice(ed.selectionStart,ed.selectionEnd).trim()||ed.value.trim(); if(!sel){ UI.toast('Write or select some code first','err'); return; } UI.toast('Thinking…'); const r=await this.ai('Explain this HTML to a complete beginner in very simple words. Go tag by tag in short bullet points: the tag name, then what it does. No long paragraphs.',sel,900); if(!r.ok){ UI.toast(r.message,'err'); return; } showRes('🎓 What this means',r.text); }));
+    acts.appendChild(this.btn('📚 Lessons',()=>{ res.classList.remove('hidden'); res.textContent=''; res.appendChild(h('div','lab-rt','📚 Learn HTML step by step')); this.LESSONS.forEach(ls=>{ const b=this.btn(ls.t,()=>{ if(ed.value.trim()&&!window.confirm('Replace your code with this lesson?')) return; ed.value=ls.c; L.code=ed.value; this._sv(); run(); res.classList.add('hidden'); },false); b.style.cssText='display:block;width:100%;text-align:left;margin:4px 0;'; res.appendChild(b); }); res.appendChild(this.btn('Close',()=>res.classList.add('hidden'))); }));
+    acts.appendChild(this.btn('💾 Save',()=>{ const n=(window.prompt('Name this project:','my-page')||'').trim(); if(!n) return; L.projects[n]={code:ed.value,t:Date.now()}; this._sv(); UI.toast('Saved “'+n+'”'); }));
+    acts.appendChild(this.btn('📂 Open',()=>{ const ks=Object.keys(L.projects); res.classList.remove('hidden'); res.textContent=''; res.appendChild(h('div','lab-rt','📂 Your saved projects')); if(!ks.length) res.appendChild(h('div','lab-rp','Nothing saved yet.')); ks.sort((a,b)=>L.projects[b].t-L.projects[a].t).forEach(k=>{ const row=h('div','btn-row'); const o=this.btn(k,()=>{ ed.value=L.projects[k].code; L.code=ed.value; this._sv(); run(); res.classList.add('hidden'); }); o.style.flex='1'; row.appendChild(o); row.appendChild(this.btn('🗑',()=>{ delete L.projects[k]; this._sv(); acts.children[5].click(); })); res.appendChild(row); }); res.appendChild(this.btn('Close',()=>res.classList.add('hidden'))); }));
+    acts.appendChild(this.btn('📋 Copy',async()=>{ UI.toast((await Utils.copyToClipboard(ed.value))?'Code copied':'Could not copy','ok'); }));
+    acts.appendChild(this.btn('🗑 Clear',()=>{ if(ed.value&&!window.confirm('Clear the editor?')) return; ed.value=''; L.code=''; this._sv(); run(); }));
+    wrap.appendChild(acts);
+    /* preview */
+    const pv=h('div','lab-pvh','Preview'); wrap.appendChild(pv);
+    const fr=document.createElement('iframe'); fr.className='lab-frame'; fr.id='labFrame'; fr.setAttribute('sandbox','allow-scripts allow-forms allow-modals'); wrap.appendChild(fr);
+    const run=()=>{ fr.srcdoc=ed.value||'<p style="font-family:sans-serif;color:#888;padding:12px">Your page will show here.</p>'; };
+    function insert(t){ const a=ed.selectionStart==null?ed.value.length:ed.selectionStart, b=ed.selectionEnd==null?a:ed.selectionEnd; let pre=ed.value.slice(0,a), post=ed.value.slice(b); if(pre&&!/\n$/.test(pre)) pre+='\n'; ed.value=pre+t+post; const pos=(pre+t).length; try{ ed.setSelectionRange(pos,pos); }catch(e){} L.code=ed.value; Lab._sv(); run(); }
+    function hideSug(){ sug.classList.add('hidden'); Lab._sugId=(Lab._sugId||0)+1; }
+    let tm=null, tmS=null;
+    ed.addEventListener('input',()=>{ L.code=ed.value; this._sv(); clearTimeout(tm); tm=setTimeout(run,450); hideSug(); clearTimeout(tmS); if(!L.ai) return;
+      tmS=setTimeout(async()=>{ const pos=ed.selectionStart; if(pos==null||document.activeElement!==ed) return; const after=ed.value.slice(pos); if(after&&after[0]!=='\n') return; const before=ed.value.slice(0,pos); if(before.trim().length<8) return;
+        const id=++this._sugId; const r=await this.ai('You are autocomplete for a beginner learning HTML. Reply with ONLY the next 1 to 3 lines of code that should come right after the cursor. No explanation, no code fences.','Code before the cursor:\n'+before.slice(-1500)+'\n\nCode after the cursor:\n'+after.slice(0,300),120);
+        if(id!==this._sugId||!r.ok) return; const t=this.clean(r.text); if(!t||t.length>400) return; sug.querySelector('code').textContent=t; sug.classList.remove('hidden'); },1400); });
+    ed.addEventListener('keydown',(e)=>{ if(e.key==='Tab'&&!sug.classList.contains('hidden')){ e.preventDefault(); insert(sug.querySelector('code').textContent); hideSug(); } });
+    const tg=()=>{ L.ai=!L.ai; this._sv(); paint(); }; sw.onclick=tg; sw.onkeydown=(e)=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); tg(); } };
+    paint(); run();
+  },
+  /* ---------- Python ---------- */
+  async pyLoad(status){
+    if(this._py) return this._py; if(this._pyP) return this._pyP;
+    this._pyP=(async()=>{
+      status('Loading Python for the first time (about 10 MB, needs internet)…');
+      if(!window.loadPyodide){ await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=this.PY_URL+'pyodide.js'; s.onload=res; s.onerror=()=>rej(new Error('Could not download Python. Check your internet and try again.')); document.head.appendChild(s); }); }
+      const py=await window.loadPyodide({indexURL:this.PY_URL}); this._py=py; return py;
+    })();
+    try{ return await this._pyP; }catch(e){ this._pyP=null; throw e; }
+  },
+  async pyRun(code,out,status){
+    out.textContent='';
+    try{
+      const py=await this.pyLoad(status);
+      py.setStdout({batched:(s)=>{ out.textContent+=s+'\n'; }}); py.setStderr({batched:(s)=>{ out.textContent+=s+'\n'; }});
+      status('Getting the libraries your code uses (first time only)…'); await py.loadPackagesFromImports(code,{messageCallback:(m)=>status(m),errorCallback:(m)=>status(m)});
+      status('Running…'); const r=await py.runPythonAsync(code); if(r!==undefined&&r!==null) out.textContent+=String(r)+'\n'; status('✅ Done');
+    }catch(e){ out.textContent+=String(e&&e.message||e)+'\n'; status('Stopped with an error'); }
+  },
+  pyView(body){
+    const L=this.st(), h=this.h.bind(this); const wrap=h('div','lab-wrap'); body.appendChild(wrap);
+    wrap.appendChild(h('div','hint','Real Python with libraries such as sympy (maths) and numpy. The first run downloads Python (about 10 MB) and needs internet. Later runs are quicker.'));
+    const chips=h('div','lab-chips'); this.PYEX.forEach(x=>{ const c=h('button','lab-chip',x[0]); c.type='button'; c.onclick=()=>{ ed.value=x[1]; L.py=ed.value; this._sv(); }; chips.appendChild(c); }); wrap.appendChild(chips);
+    const ed=h('textarea','lab-ed'); ed.id='labPy'; ed.spellcheck=false; ed.autocapitalize='none'; ed.setAttribute('autocorrect','off'); ed.rows=10; ed.placeholder='Write Python here…'; ed.value=L.py||this.PYEX[0][1]; wrap.appendChild(ed); ed.addEventListener('input',()=>{ L.py=ed.value; this._sv(); });
+    const st=h('div','hint','Ready.'); st.id='labPyStatus'; const out=h('pre','lab-out'); out.id='labPyOut';
+    const row=h('div','lab-acts'); const go=this.btn('▶ Run',async()=>{ if(this._pyBusy) return; this._pyBusy=true; go.disabled=true; await this.pyRun(ed.value,out,(m)=>{ st.textContent=m; }); this._pyBusy=false; go.disabled=false; },true); row.appendChild(go);
+    row.appendChild(this.btn('🗑 Clear',()=>{ ed.value=''; L.py=''; this._sv(); out.textContent=''; })); row.appendChild(this.btn('📋 Copy',async()=>{ UI.toast((await Utils.copyToClipboard(ed.value))?'Code copied':'Could not copy','ok'); }));
+    wrap.appendChild(row); wrap.appendChild(st); wrap.appendChild(out);
+  }
+};
+
+const Browse = {
+  norm(v){
+    v=String(v||'').trim(); if(!v) return null;
+    const y=/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/))([\w-]{11})/i.exec(v);
+    if(y) return {url:'https://www.youtube-nocookie.com/embed/'+y[1]+'?playsinline=1&rel=0',yt:true};
+    if(/^https?:\/\//i.test(v)) return {url:v};
+    if(/^[\w-]+(\.[\w-]+)+([\/?#].*)?$/.test(v)) return {url:'https://'+v};
+    return {url:'https://en.wikipedia.org/w/index.php?search='+encodeURIComponent(v),search:true};
+  },
+  show(){
+    if(UI.activeFeedTab!=='browse') return; const body=UI.el.feedBody; if(!body) return; body.innerHTML=''; UI.el.feedReason.classList.add('hidden'); const h=Lab.h.bind(Lab);
+    const head=h('div','lib-head'); head.style.setProperty('--h',210); head.innerHTML='<div class="lib-stat"><b>🌐 Browse</b><span>Open sites and watch YouTube links without leaving Blitz</span></div>'; body.appendChild(head);
+    const wrap=h('div','lab-wrap'); body.appendChild(wrap);
+    const bar=h('div','brw-bar'); const inp=h('input'); inp.type='text'; inp.id='brwUrl'; inp.placeholder='Paste a link, a YouTube link, or a word to look up'; inp.setAttribute('autocapitalize','none'); inp.setAttribute('autocorrect','off'); const go=Lab.btn('Go',()=>open(),true); bar.appendChild(inp); bar.appendChild(go); wrap.appendChild(bar);
+    const chips=h('div','lab-chips'); [['Wikipedia','https://en.wikipedia.org/'],['Internet Archive','https://archive.org/']].forEach(s=>{ const c=h('button','lab-chip',s[0]); c.type='button'; c.onclick=()=>{ inp.value=s[1]; open(); }; chips.appendChild(c); }); wrap.appendChild(chips);
+    const note=h('div','hint','Some sites do not allow being shown inside another app, and then the page stays blank. Use “Open in Chrome” for those.'); wrap.appendChild(note);
+    const frWrap=h('div','brw-wrap hidden'); frWrap.id='brwWrap'; const tb=h('div','brw-tb'); const full=Lab.btn('⛶ Full screen',()=>{ frWrap.classList.toggle('brw-full'); full.textContent=frWrap.classList.contains('brw-full')?'✕ Exit full screen':'⛶ Full screen'; }); const ext=Lab.btn('↗ Open in Chrome',()=>{ if(cur) window.open(cur,'_blank'); }); const cls=Lab.btn('Close',()=>{ fr.src='about:blank'; frWrap.classList.add('hidden'); frWrap.classList.remove('brw-full'); full.textContent='⛶ Full screen'; cur=''; });
+    tb.appendChild(full); tb.appendChild(ext); tb.appendChild(cls); frWrap.appendChild(tb);
+    const fr=document.createElement('iframe'); fr.className='brw-frame'; fr.id='brwFrame'; fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture; encrypted-media'); fr.setAttribute('allowfullscreen',''); fr.setAttribute('referrerpolicy','no-referrer'); fr.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'); frWrap.appendChild(fr); wrap.appendChild(frWrap);
+    let cur=''; const open=()=>{ const n=this.norm(inp.value); if(!n){ UI.toast('Type or paste something first','err'); return; } cur=n.url; frWrap.classList.remove('hidden'); fr.src=n.url; if(n.search) UI.toast('Looking it up on Wikipedia'); frWrap.scrollIntoView({block:'nearest'}); };
+    inp.addEventListener('keydown',(e)=>{ if(e.key==='Enter') open(); });
+    /* download a file link into My Media */
+    const dl=h('div','field brw-dl'); dl.appendChild(h('div','lab-rt','⬇ Download a video or song link into My Media')); const di=h('input'); di.type='text'; di.id='brwDl'; di.placeholder='Direct link to an .mp4 / .mp3 / .m4a file'; di.setAttribute('autocapitalize','none'); dl.appendChild(di);
+    const bw=h('div','brw-pb hidden'); bw.innerHTML='<div class="brw-pbo"><div class="brw-pbi"></div></div><div class="hint brw-pbt"></div>'; const row=h('div','btn-row'); const gb=Lab.btn('⬇ Download',()=>this.download(di.value.trim(),bw,gb,cb),true); const cb=Lab.btn('Cancel',()=>{ if(this._dlAbort) this._dlAbort.abort(); }); cb.classList.add('hidden'); row.appendChild(gb); row.appendChild(cb); dl.appendChild(row); dl.appendChild(bw);
+    dl.appendChild(h('div','hint','Only download things you have the right to keep, such as your own files and free or open content. Links from streaming sites usually are not direct file links and will not work.')); wrap.appendChild(dl);
+  },
+  EXT:{'video/mp4':'mp4','video/webm':'webm','video/x-matroska':'mkv','audio/mpeg':'mp3','audio/mp4':'m4a','audio/aac':'aac','audio/ogg':'ogg','audio/wav':'wav','audio/webm':'webm','video/ogg':'ogv'},
+  async download(u,bw,gb,cb){
+    if(this._dling) return; if(!/^https?:\/\//i.test(u)){ UI.toast('Paste a full link starting with http','err'); return; }
+    const fill=bw.querySelector('.brw-pbi'), txt=bw.querySelector('.brw-pbt'); const fmt=(n)=>n>=1e9?(n/1e9).toFixed(2)+' GB':(n/1e6).toFixed(1)+' MB';
+    this._dling=true; gb.disabled=true; cb.classList.remove('hidden'); bw.classList.remove('hidden'); fill.style.width='0%'; txt.textContent='Starting…'; const ac=new AbortController(); this._dlAbort=ac; const t0=Date.now();
+    try{
+      let blob,type='',name='';
+      try{
+        const res=await fetch(u,{signal:ac.signal}); if(!res.ok) throw new Error('The site answered '+res.status);
+        type=(res.headers.get('content-type')||'').split(';')[0].trim().toLowerCase(); const cd=res.headers.get('content-disposition')||''; const m=/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd); if(m) name=decodeURIComponent(m[1]);
+        const total=Number(res.headers.get('content-length')||0); const rd=res.body.getReader(); const parts=[]; let got=0;
+        for(;;){ const r=await rd.read(); if(r.done) break; parts.push(r.value); got+=r.value.length; const pct=total?got/total*100:null; if(pct!=null) fill.style.width=Math.min(100,pct)+'%'; const secs=(Date.now()-t0)/1000, sp=got/Math.max(1,secs); txt.textContent=(pct!=null?Math.floor(pct)+'% · ':'')+fmt(got)+(total?' of '+fmt(total):'')+(total&&sp>0?' · about '+Math.max(1,Math.round((total-got)/sp))+' s left':''); }
+        blob=new Blob(parts,{type:type||'application/octet-stream'});
+      }catch(e){
+        if(e&&e.name==='AbortError') throw e;
+        const H=(typeof Native!=='undefined')&&Native.app()?Native.P('CapacitorHttp'):null; if(!H) throw new Error('The site does not allow downloads inside Blitz (or the link is wrong).');
+        txt.textContent='Trying another way…'; const r=await H.request({url:u,method:'GET',responseType:'blob'}); if(!r||r.status>=400||!r.data) throw new Error('The site refused the download.');
+        type=String((r.headers&&(r.headers['Content-Type']||r.headers['content-type']))||'').split(';')[0].trim().toLowerCase(); const bin=atob(r.data); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i); blob=new Blob([arr],{type:type||'application/octet-stream'});
+      }
+      if(!name){ try{ name=decodeURIComponent(new URL(u).pathname.split('/').pop()||''); }catch(e){} }
+      const ok=/\.(mp4|m4v|webm|mkv|mov|mp3|m4a|aac|ogg|opus|wav|flac|ogv)$/i.test(name); const isMedia=/^(video|audio)\//.test(type);
+      if(!isMedia&&!ok) throw new Error('That link is not a video or song file (it sent '+(type||'unknown')+').');
+      if(!ok){ name=(name||'download')+'.'+(this.EXT[type]||(type.indexOf('audio')===0?'mp3':'mp4')); }
+      fill.style.width='100%'; txt.textContent='Done. Adding to My Media…';
+      const file=new File([blob],name,{type:type||(/\.(mp3|m4a|aac|ogg|opus|wav|flac)$/i.test(name)?'audio/mpeg':'video/mp4')});
+      await Player.addFiles([file]); txt.textContent='✅ Added to My Media. Open the 🎬 My Media tab to play it.'; UI.toast('Added to My Media','ok');
+    }catch(e){ if(e&&e.name==='AbortError') txt.textContent='Cancelled.'; else{ txt.textContent=(e&&e.message)||'The download failed.'; } fill.style.width='0%'; }
+    finally{ this._dling=false; this._dlAbort=null; gb.disabled=false; cb.classList.add('hidden'); }
+  }
+};
+
 const PATCH_NOTES = [
+  {ver:'4.0', label:'Lab', items:[
+    'Code Lab (Feed → 🧪 Code Lab): a beginner HTML editor with a live preview, a retro AI HELP on/off switch (suggests your next line, fixes mistakes, explains tags in simple words), an “idea to code” box, 6 lessons and saved projects. A Python mode runs real Python with sympy and numpy',
+    'Browse (Feed → 🌐 Browse): open sites and watch YouTube links inside Blitz with a full-screen button, and download direct video or song links into My Media with a progress bar'
+  ]},
+  {ver:'3.9', label:'Stay', items:[
+    'My Media: videos and songs you add are now saved inside Blitz automatically, so they are still there after you close and reopen the app (switch in Settings → Appearance → Blitz app; uses phone storage, Remove frees it)'
+  ]},
   {ver:'3.8', label:'Progress', items:[
     'Model downloads now show a real progress bar with size, percent and time left, and a Cancel link. Downloads pick up where they stopped'
   ]},
