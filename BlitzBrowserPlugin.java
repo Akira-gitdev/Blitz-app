@@ -1,25 +1,20 @@
 package com.flambounds.blitz;
 
 import android.app.Activity;
-import android.content.Context;
+import android.content.ActivityNotFoundException;
+import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.Uri;
-import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.InputMethodManager;
 import android.webkit.CookieManager;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
@@ -27,21 +22,23 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-/** A real browser inside Blitz: opens on top of the app, with back, forward, reload, an address bar and full screen video. */
+/**
+ * The Blitz browser. The page draws the toolbar, this plugin only supplies the web view
+ * and puts it exactly where the page says (the "bounds"), so it lives inside the Search tab.
+ */
 @CapacitorPlugin(name = "BlitzBrowser")
 public class BlitzBrowserPlugin extends Plugin {
 
-  private FrameLayout root;
-  private LinearLayout column;
+  private FrameLayout box; // holds the web view, sits on top of the app page
   private WebView web;
-  private EditText addr;
-  private ProgressBar bar;
+  private FrameLayout full; // full screen video
   private View customView;
   private WebChromeClient.CustomViewCallback customCb;
   private OnBackPressedCallback backCb;
+  private boolean shown = true;
 
-  private int dp(Context c, int v) {
-    return (int) (v * c.getResources().getDisplayMetrics().density + 0.5f);
+  private float dens(Activity a) {
+    return a.getResources().getDisplayMetrics().density;
   }
 
   private String fix(String raw) {
@@ -52,83 +49,54 @@ public class BlitzBrowserPlugin extends Plugin {
     return "https://duckduckgo.com/?q=" + Uri.encode(t);
   }
 
-  private TextView button(final Activity a, String label, View.OnClickListener l) {
-    TextView b = new TextView(a);
-    b.setText(label);
-    b.setTextColor(Color.WHITE);
-    b.setTextSize(18f);
-    b.setGravity(Gravity.CENTER);
-    b.setPadding(dp(a, 12), dp(a, 8), dp(a, 12), dp(a, 8));
-    b.setOnClickListener(l);
-    return b;
+  private void place(Activity a, double x, double y, double w, double h, boolean visible) {
+    if (box == null) return;
+    float d = dens(a);
+    int ox = 0;
+    int oy = 0;
+    try {
+      View bw = getBridge().getWebView();
+      View content = a.findViewById(android.R.id.content);
+      int[] wl = new int[2];
+      int[] cl = new int[2];
+      bw.getLocationInWindow(wl);
+      content.getLocationInWindow(cl);
+      ox = wl[0] - cl[0];
+      oy = wl[1] - cl[1];
+    } catch (Exception e) {
+      // keep zero
+    }
+    FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Math.max(1, Math.round((float) (w * d))), Math.max(1, Math.round((float) (h * d))));
+    lp.leftMargin = ox + Math.round((float) (x * d));
+    lp.topMargin = oy + Math.round((float) (y * d));
+    box.setLayoutParams(lp);
+    shown = visible;
+    box.setVisibility(visible ? View.VISIBLE : View.INVISIBLE);
+    refreshBack();
   }
 
-  private void build(final Activity a) {
-    if (root != null) return;
-    ViewGroup content = (ViewGroup) a.findViewById(android.R.id.content);
-    root = new FrameLayout(a);
-    root.setBackgroundColor(Color.BLACK);
-    root.setClickable(true);
-    root.setFitsSystemWindows(true);
+  private void refreshBack() {
+    if (backCb == null) return;
+    boolean on = box != null && ((customView != null) || (shown && web != null && web.canGoBack()));
+    backCb.setEnabled(on);
+  }
 
-    column = new LinearLayout(a);
-    column.setOrientation(LinearLayout.VERTICAL);
-    root.addView(column, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+  private void page(String url, boolean done) {
+    if (web == null) return;
+    JSObject o = new JSObject();
+    o.put("url", url);
+    o.put("title", web.getTitle());
+    o.put("canBack", web.canGoBack());
+    o.put("canForward", web.canGoForward());
+    notifyListeners(done ? "done" : "page", o);
+    refreshBack();
+  }
 
-    LinearLayout tb = new LinearLayout(a);
-    tb.setOrientation(LinearLayout.HORIZONTAL);
-    tb.setGravity(Gravity.CENTER_VERTICAL);
-    tb.setBackgroundColor(Color.parseColor("#1B1830"));
-    tb.setPadding(dp(a, 4), dp(a, 2), dp(a, 4), dp(a, 2));
-    tb.addView(button(a, "◀", new View.OnClickListener() {
-      @Override
-      public void onClick(View v) {
-        if (web != null && web.canGoBack()) web.goBack();
-      }
-    }));
-    tb.addView(button(a, "▶", new View.OnClickListener() {
-      @Override
-      public void onClick(View v) {
-        if (web != null && web.canGoForward()) web.goForward();
-      }
-    }));
-    tb.addView(button(a, "⟳", new View.OnClickListener() {
-      @Override
-      public void onClick(View v) {
-        if (web != null) web.reload();
-      }
-    }));
-    addr = new EditText(a);
-    addr.setSingleLine(true);
-    addr.setTextColor(Color.WHITE);
-    addr.setHintTextColor(Color.GRAY);
-    addr.setHint("Search or type a link");
-    addr.setTextSize(14f);
-    addr.setImeOptions(EditorInfo.IME_ACTION_GO);
-    addr.setSelectAllOnFocus(true);
-    addr.setOnEditorActionListener(new TextView.OnEditorActionListener() {
-      @Override
-      public boolean onEditorAction(TextView v, int actionId, android.view.KeyEvent event) {
-        String u = fix(addr.getText().toString());
-        if (web != null) web.loadUrl(u);
-        InputMethodManager imm = (InputMethodManager) a.getSystemService(Context.INPUT_METHOD_SERVICE);
-        if (imm != null) imm.hideSoftInputFromWindow(addr.getWindowToken(), 0);
-        addr.clearFocus();
-        return true;
-      }
-    });
-    tb.addView(addr, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-    tb.addView(button(a, "✕", new View.OnClickListener() {
-      @Override
-      public void onClick(View v) {
-        closeNow();
-      }
-    }));
-    column.addView(tb, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-    bar = new ProgressBar(a, null, android.R.attr.progressBarStyleHorizontal);
-    bar.setMax(100);
-    column.addView(bar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(a, 3)));
+  private void build(final Activity a, String startUrl) {
+    ViewGroup parent = (ViewGroup) a.findViewById(android.R.id.content);
+    box = new FrameLayout(a);
+    box.setBackgroundColor(Color.parseColor("#101018"));
+    box.setClickable(true);
 
     web = new WebView(a);
     WebSettings s = web.getSettings();
@@ -152,25 +120,26 @@ public class BlitzBrowserPlugin extends Plugin {
       }
 
       @Override
-      public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) {
-        bar.setVisibility(View.VISIBLE);
-        if (!addr.hasFocus()) addr.setText(url);
+      public void onPageStarted(WebView view, String url, Bitmap favicon) {
+        notifyListeners("start", new JSObject());
+      }
+
+      @Override
+      public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
+        page(url, false);
       }
 
       @Override
       public void onPageFinished(WebView view, String url) {
-        bar.setVisibility(View.GONE);
-        if (!addr.hasFocus()) addr.setText(url);
-        JSObject o = new JSObject();
-        o.put("url", url);
-        o.put("title", view.getTitle());
-        notifyListeners("page", o);
+        page(url, true);
       }
     });
     web.setWebChromeClient(new WebChromeClient() {
       @Override
       public void onProgressChanged(WebView view, int newProgress) {
-        bar.setProgress(newProgress);
+        JSObject o = new JSObject();
+        o.put("p", newProgress);
+        notifyListeners("progress", o);
       }
 
       @Override
@@ -181,8 +150,13 @@ public class BlitzBrowserPlugin extends Plugin {
         }
         customView = view;
         customCb = cb;
-        column.setVisibility(View.GONE);
-        root.addView(view, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        ViewGroup content = (ViewGroup) a.findViewById(android.R.id.content);
+        full = new FrameLayout(a);
+        full.setBackgroundColor(Color.BLACK);
+        full.setClickable(true);
+        full.addView(view, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        content.addView(full, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        refreshBack();
       }
 
       @Override
@@ -204,19 +178,16 @@ public class BlitzBrowserPlugin extends Plugin {
         notifyListeners("download", o);
       }
     });
-    column.addView(web, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+    box.addView(web, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    parent.addView(box, new FrameLayout.LayoutParams(10, 10));
 
-    content.addView(root, new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-
-    backCb = new OnBackPressedCallback(true) {
+    backCb = new OnBackPressedCallback(false) {
       @Override
       public void handleOnBackPressed() {
         if (customView != null) {
           hideCustom();
         } else if (web != null && web.canGoBack()) {
           web.goBack();
-        } else {
-          closeNow();
         }
       }
     };
@@ -225,22 +196,27 @@ public class BlitzBrowserPlugin extends Plugin {
 
   private void hideCustom() {
     if (customView == null) return;
-    root.removeView(customView);
+    try {
+      if (full != null && full.getParent() != null) ((ViewGroup) full.getParent()).removeView(full);
+    } catch (Exception e) {
+      // already gone
+    }
+    full = null;
     customView = null;
     if (customCb != null) customCb.onCustomViewHidden();
     customCb = null;
-    column.setVisibility(View.VISIBLE);
+    refreshBack();
   }
 
   private void closeNow() {
-    if (root == null) return;
+    if (box == null) return;
     hideCustom();
     if (backCb != null) {
       backCb.remove();
       backCb = null;
     }
     try {
-      ((ViewGroup) root.getParent()).removeView(root);
+      ((ViewGroup) box.getParent()).removeView(box);
     } catch (Exception e) {
       // already gone
     }
@@ -249,27 +225,121 @@ public class BlitzBrowserPlugin extends Plugin {
       web.destroy();
     }
     web = null;
-    root = null;
-    column = null;
-    addr = null;
-    bar = null;
+    box = null;
     notifyListeners("closed", new JSObject());
   }
 
   @PluginMethod
   public void open(final PluginCall call) {
     final String url = fix(call.getString("url", ""));
+    final double x = call.getDouble("x", 0.0);
+    final double y = call.getDouble("y", 0.0);
+    final double w = call.getDouble("w", 100.0);
+    final double h = call.getDouble("h", 100.0);
     final Activity a = getActivity();
     a.runOnUiThread(new Runnable() {
       @Override
       public void run() {
         try {
-          build(a);
+          if (box == null) build(a, url);
+          place(a, x, y, w, h, true);
           web.loadUrl(url);
           call.resolve();
         } catch (Exception e) {
           call.reject("Could not open the browser: " + e.getMessage());
         }
+      }
+    });
+  }
+
+  @PluginMethod
+  public void go(final PluginCall call) {
+    final String url = fix(call.getString("url", ""));
+    getActivity().runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        if (web == null) {
+          call.reject("Browser is not open");
+          return;
+        }
+        web.loadUrl(url);
+        call.resolve();
+      }
+    });
+  }
+
+  @PluginMethod
+  public void bounds(final PluginCall call) {
+    final double x = call.getDouble("x", 0.0);
+    final double y = call.getDouble("y", 0.0);
+    final double w = call.getDouble("w", 100.0);
+    final double h = call.getDouble("h", 100.0);
+    final boolean vis = call.getBoolean("visible", true);
+    final Activity a = getActivity();
+    a.runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        place(a, x, y, w, h, vis);
+        call.resolve();
+      }
+    });
+  }
+
+  @PluginMethod
+  public void back(final PluginCall call) {
+    getActivity().runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        if (web != null && web.canGoBack()) web.goBack();
+        call.resolve();
+      }
+    });
+  }
+
+  @PluginMethod
+  public void forward(final PluginCall call) {
+    getActivity().runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        if (web != null && web.canGoForward()) web.goForward();
+        call.resolve();
+      }
+    });
+  }
+
+  @PluginMethod
+  public void reload(final PluginCall call) {
+    getActivity().runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        if (web != null) web.reload();
+        call.resolve();
+      }
+    });
+  }
+
+  /** Opens a link in the phone's own app (YouTube, Maps, ...). Resolves opened:false when the app is not installed. */
+  @PluginMethod
+  public void openApp(final PluginCall call) {
+    final String url = call.getString("url", "");
+    final String pkg = call.getString("pkg", "");
+    final Activity a = getActivity();
+    a.runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        JSObject r = new JSObject();
+        try {
+          Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+          if (pkg != null && pkg.length() > 0) i.setPackage(pkg);
+          i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+          a.startActivity(i);
+          r.put("opened", true);
+        } catch (ActivityNotFoundException e) {
+          r.put("opened", false);
+        } catch (Exception e) {
+          r.put("opened", false);
+        }
+        call.resolve(r);
       }
     });
   }

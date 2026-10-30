@@ -1858,6 +1858,46 @@ html[data-theme="dark"] .lab-idea textarea,html[data-theme="dark"] .lab-ed,html[
 .brw-pb{margin:8px 0;}.brw-pbo{height:12px;border-radius:8px;background:rgba(127,127,127,.25);overflow:hidden;}
 .brw-pbi{height:100%;width:0;background:var(--accent,#e6b422);transition:width .3s;}
 .brw-dl{display:flex;flex-direction:column;gap:8px;}
+
+
+/* ---- Playlists ------------------------------------------------------------ */
+.pl-sec{margin:0 0 12px;}
+.pl-card{padding:10px 12px;margin-bottom:8px;}
+.pl-top{display:flex;align-items:center;gap:8px;}
+.pl-top b{flex:1;font-size:14px;}
+.pl-kind{font-size:11px;font-weight:700;color:var(--text-faint);}
+.pl-items{margin:8px 0 2px;display:flex;flex-direction:column;gap:2px;}
+.pl-it{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text-dim);padding:4px 0;border-bottom:1px solid var(--line-soft);}
+.pl-it span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pl-it button{background:none;border:none;color:var(--text-faint);font-size:14px;padding:2px 6px;}
+.pl-pick{display:flex;align-items:center;gap:8px;width:100%;text-align:left;background:rgba(255,255,255,.5);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 12px;margin:6px 0;font-size:13.5px;font-weight:600;}
+html[data-theme="dark"] .pl-pick{background:rgba(255,255,255,.08);}
+#plyRep.on,#plyShuf.on{background:var(--spark);color:#fff;}
+
+/* ---- Search tab: Normal / Browser switch + embedded browser ------------- */
+.sb-switch{flex:none;display:none;gap:8px;align-items:center;flex-wrap:wrap;padding:0 2px;}
+.sb-switch.on{display:flex;}
+.sb-seg{display:inline-flex;align-items:center;gap:2px;background:rgba(255,255,255,0.34);border:1px solid var(--glass-border);border-radius:var(--radius-pill);padding:3px;}
+.sb-seg button{background:transparent;border:none;color:var(--text-dim);padding:6px 10px;border-radius:var(--radius-pill);font-size:12px;font-weight:600;white-space:nowrap;transition:background .15s,color .15s;}
+.sb-seg button.on{background:var(--spark);color:#fff;}
+.sb-lbl{font-size:11px;color:var(--text-faint);padding:0 4px 0 8px;font-weight:600;}
+.sb-switch{justify-content:space-between;}
+.sb-wrap{display:none;flex:1;min-height:0;flex-direction:column;background:var(--glass-grad), var(--obsidian-frame-right);border:1px solid var(--glass-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-glass);overflow:hidden;}
+.sb-bar{flex:none;display:flex;align-items:center;gap:4px;padding:6px 8px;}
+.sb-b{background:rgba(255,255,255,0.45);border:1px solid var(--glass-border);color:var(--text);min-width:38px;height:34px;border-radius:var(--radius-pill);font-size:14px;padding:0 10px;}
+.sb-b:disabled{opacity:.35;}
+.sb-b.sb-t{font-size:11.5px;font-weight:600;color:var(--text-dim);}
+.sb-b.on{background:var(--spark);border-color:var(--spark);color:#fff;}
+.sb-sp{flex:1;}
+.sb-prog{flex:none;height:3px;background:transparent;}
+.sb-prog i{display:block;height:100%;width:0;background:var(--spark);transition:width .15s;}
+.sb-host{flex:1;min-height:0;overflow:auto;}
+.sb-home{padding:14px 16px;}
+.sb-home .sb-hi{font-family:var(--font-display);font-size:15px;font-weight:700;margin:2px 0 4px;color:var(--text);}
+.sb-home .sb-hd{font-size:12.5px;color:var(--text-dim);margin-bottom:12px;line-height:1.45;}
+.sb-home .sp-dial{margin-top:4px;}
+.pane-search.sb-on .ws-modes,.pane-search.sb-on .ws-panel,.pane-search.sb-on .ws-suggest,.pane-search.sb-on .ws-tabs{display:none !important;}
+.pane-search.sb-on .sb-wrap{display:flex;}
 </style>
 </head>
 <body>
@@ -1967,7 +2007,7 @@ html[data-theme="dark"] .lab-idea textarea,html[data-theme="dark"] .lab-ed,html[
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
           </button>
           <div class="type-pill">
-            <input type="text" id="chatInput" placeholder="Type bar — say anything to Blitz" autocomplete="off" enterkeyhint="send">
+            <input type="text" id="chatInput" placeholder="Message Blitz…" autocomplete="off" enterkeyhint="send">
             <button class="attach-btn" id="attachBtn" type="button" title="Send a picture" aria-label="Send a picture">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="9" cy="9" r="1.8"/><path d="m21 15-5-5L5 21"/></svg>
             </button>
@@ -2031,8 +2071,25 @@ html[data-theme="dark"] .lab-idea textarea,html[data-theme="dark"] .lab-ed,html[
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         </button>
       </form>
+      <div class="sb-switch" id="sbSwitch">
+        <div class="sb-seg" id="sbMode" role="group" aria-label="Search mode"><button type="button" data-m="normal">🔎 Search</button><button type="button" data-m="browser">🌐 Browser</button></div>
+        <div class="sb-seg sb-apps" id="sbApps" role="group" aria-label="When you tap an app link"><span class="sb-lbl">Apps:</span><button type="button" data-a="app" title="Open YouTube, Maps and others in their own app">📱 App</button><button type="button" data-a="blitz" title="Keep everything inside Blitz">Blitz</button></div>
+      </div>
       <div class="ws-suggest hidden" id="wsSuggest"></div>
       <div class="ws-modes" id="wsModes"></div>
+      <div class="sb-wrap" id="sbWrap">
+        <div class="sb-bar">
+          <button type="button" class="sb-b" id="sbBack" aria-label="Back">◀</button>
+          <button type="button" class="sb-b" id="sbFwd" aria-label="Forward">▶</button>
+          <button type="button" class="sb-b" id="sbReload" aria-label="Reload">⟳</button>
+          <button type="button" class="sb-b" id="sbHome" aria-label="Start page">🏠</button>
+          <span class="sb-sp"></span>
+          <button type="button" class="sb-b sb-t" id="sbEng" title="Search engine">DuckDuckGo</button>
+          <button type="button" class="sb-b sb-t" id="sbPriv" title="Private: Blitz will not remember pages you visit here">🕶</button>
+        </div>
+        <div class="sb-prog"><i id="sbProg"></i></div>
+        <div class="sb-host" id="sbHost"></div>
+      </div>
       <div class="ws-panel">
         <div class="ws-body" id="wsBody"></div>
         <div class="ws-foot hidden" id="wsFoot"></div>
@@ -2756,7 +2813,7 @@ html[data-theme="dark"] .lab-idea textarea,html[data-theme="dark"] .lab-ed,html[
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '4.1', label: 'Browser' };
+const BLITZ_VERSION = { number: '4.2', label: 'Switch' };
 
 const Utils = {
   uid(prefix){
@@ -6312,6 +6369,9 @@ const Manager = {
       return {type:'action', action:'open_feed', text:reply, local:true, tool:'youtube'};
     }
 
+    // 1.75) playlists and "open <site>" — plain talk, no AI needed
+    try{ const _act = await Actions.route(userText); if(_act){ InternalState.onEvent('tool_used'); await Context.logTurn('ai', _act.text, {local:true, tool:_act.tool}); return {type:'reply', text:_act.text, local:true, tool:_act.tool}; } }catch(e){ console.warn('Actions', e); }
+
     // 1.8) /search <words> — or just saying "search for ...", "google ...", "look up ..." —
     // sends it straight to the Search tab (the real search engine), no AI needed.
     const searchQ = this.detectSearch(userText);
@@ -6743,7 +6803,7 @@ const Voice = {
       const proc = ctx.createScriptProcessor(4096, 1, 1);
       const mute = ctx.createGain(); mute.gain.value = 0;
       const R = {stream, ctx, src, proc, mute, chunks:[], rate:ctx.sampleRate, finish:false,
-                 t0:performance.now(), heard:false, lastVoice:0, floor:0.006, n:0};
+                 t0:performance.now(), heard:false, lastVoice:0, floor:0.004, n:0, hist:[], voiced:0};
       this._rec = R;
       proc.onaudioprocess = (ev)=>{
         const d = ev.inputBuffer.getChannelData(0);
@@ -6751,13 +6811,18 @@ const Voice = {
         let sum=0; for(let i=0;i<d.length;i++) sum += d[i]*d[i];
         const rms = Math.sqrt(sum/d.length), now = performance.now();
         R.n++;
-        // learn the room's background level from the first few blocks
-        if(R.n<=4){ R.floor = Math.max(R.floor, Math.min(rms*1.6, 0.03)); }
-        const gate = Math.max(0.012, R.floor*2.2);
-        if(rms > gate){ R.heard = true; R.lastVoice = now; }
+        // the room's background level = the quietest block of the last ~2 seconds, so it keeps
+        // adapting and talking right away does not teach it that your voice is "silence"
+        R.hist.push(rms); if(R.hist.length>22) R.hist.shift();
+        const quiet = Math.min.apply(null, R.hist);
+        R.floor = Math.min(0.008, Math.max(0.0015, quiet*1.4));
+        const gate = Math.max(0.007, R.floor*2.4);
+        if(rms > gate){ R.heard = true; R.lastVoice = now; R.voiced++; }
         const el = now - R.t0;
-        if(R.heard && now - R.lastVoice > 1500) R.finish = true;   // you stopped talking
-        if(!R.heard && el > 9000){ R.finish = true; }              // nothing said
+        // a short phrase gets more time for a breath, a long one is finished sooner
+        const wait = R.voiced < 8 ? 2300 : 1900;
+        if(R.heard && now - R.lastVoice > wait) R.finish = true;   // you stopped talking
+        if(!R.heard && el > 10000){ R.finish = true; }             // nothing said
         if(el > 30000) R.finish = true;                            // safety cap
       };
       src.connect(proc); proc.connect(mute); mute.connect(ctx.destination);
@@ -6831,8 +6896,13 @@ const Voice = {
   },
   /** Tries the saved model first, then a couple of current ones (Google
    *  retires models; a 404 just means "try the next"). */
+  /** words Blitz expects to hear: your playlists and saved sites, so names come out spelled right */
+  hintWords(){
+    const out=[]; try{ Player.pls().forEach(p=>out.push(p.name)); }catch(e){} try{ Space.load().links.forEach(l=>out.push(l.t)); }catch(e){}
+    return out.filter(Boolean).slice(0,40).join(', ');
+  },
   async _transcribe(wavBytes){
-    const b64 = this._b64(wavBytes);
+    const b64 = this._b64(wavBytes); const hw = this.hintWords();
     const list = [this._sttModel, Config.state.geminiModel, 'gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-2.5-flash']
       .filter((m,i,a)=>m && !/^gemini-(1\.|2\.0)/.test(m) && a.indexOf(m)===i);
     let lastErr = 'unknown';
@@ -6843,7 +6913,7 @@ const Voice = {
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({
             contents:[{role:'user', parts:[
-              {text:'Transcribe the speech in this audio exactly as spoken, in the language spoken. Output ONLY the transcript, no quotes, no commentary. If there is no intelligible speech, output exactly: [no speech]'},
+              {text:'This is someone talking to a phone assistant called Blitz, usually in quick, casual speech (English, Hindi or a mix). Transcribe exactly what was said, in the language spoken, and keep Hindi words in Latin letters if that is how they were said. Likely words: play, playlist, shuffle, open, search, go to, YouTube, anime, manga, episode, song, video.'+(hw?' Names that may come up: '+hw+'.':'')+' Output ONLY the transcript, no quotes, no commentary. If there is no intelligible speech, output exactly: [no speech]'},
               {inlineData:{mimeType:'audio/wav', data:b64}}
             ]}],
             generationConfig:{temperature:0, maxOutputTokens:1024}
@@ -8495,7 +8565,8 @@ Object.assign(UI, {
       this.el[btn].classList.toggle('active', name===tab);
       this.el[pane].classList.toggle('tab-active', name===tab);
     });
-    if(tab==='search'){ this._wsLazyOk = true; this.wsShowActive(); } // picks up key changes made in Settings
+    if(tab==='search'){ this._wsLazyOk = true; if(!(typeof SB!=='undefined' && SB.mode())) this.wsShowActive(); } // picks up key changes made in Settings
+    try{ if(typeof SB!=='undefined') SB.sync(); }catch(e){}
   },
 
   _wsEl(tag, cls, text){
@@ -8725,6 +8796,7 @@ Object.assign(UI, {
     const box = document.getElementById('wsSuggest'); if(box) box.classList.add('hidden');
     if(type==='cmd'){ CmdK.open(value); return; }
     if(document.activeElement===this.el.wsInput) this.el.wsInput.blur();
+    if(SB.mode() && (type==='search' || type==='url')){ return SB.load(type==='url' ? value : text, type); }
     const tab = this.wsCur();
     if(type==='url'){ return this.wsOpenUrl(tab, value); }
     if(type==='ask'){ return this.wsAsk(tab, value); }
@@ -8744,7 +8816,7 @@ Object.assign(UI, {
     if(!href){ this.toast("That doesn't look like a web address.", 'err'); return; }
     let host=''; try{ host = new URL(href).hostname.replace(/^www\./,''); }catch(e){}
     Space.log(host,'link');
-    const w = window.open(href, '_blank', 'noopener,noreferrer');
+    const w = Native.app() ? (SB.openLink(href), true) : window.open(href, '_blank', 'noopener,noreferrer');
     tab.query = host; tab.title = this._wsShort(host); tab.data = {kind:'url', href, host, opened:!!w};
     this.el.wsInput.value = host; this.el.wsClear.classList.remove('hidden');
     this.renderWsTabs(); this._wsSave(); this.wsRenderData(tab);
@@ -9172,7 +9244,7 @@ Object.assign(UI, {
   setSpView(v){ this.spView = v; this.spEdit=false; this.renderWsIdle(); const b=this.el.wsBody; if(b) b.scrollTop=0; },
   /** Search again from anywhere in Space (always a fresh query in the current tab). */
   spGo(q){ this.wsSubmit(q,'search'); },
-  spOpen(u){ const w = window.open(u,'_blank','noopener,noreferrer'); if(!w) this.toast('Your browser blocked the pop-up — tap again.', 'err'); },
+  spOpen(u){ if(Native.app()){ SB.openLink(u); return; } const w = window.open(u,'_blank','noopener,noreferrer'); if(!w) this.toast('Your browser blocked the pop-up — tap again.', 'err'); },
   _spChip(label, fn, cls){ const b=this._wsEl('button',cls||'sp-chip',label); b.type='button'; b.onclick=fn; return b; },
   _spHead(title, actionLabel, fn){
     const h=this._wsEl('div','sp-head'); h.appendChild(this._wsEl('div','ws-heading',title));
@@ -10008,12 +10080,67 @@ const Player = {
     const inp=document.createElement('input'); inp.type='file'; inp.multiple=true; inp.accept='video/*,audio/*,.mkv,.srt,.vtt'; inp.style.display='none'; inp.onchange=()=>{ this.addFiles(inp.files); inp.value=''; };
     const add=document.createElement('button'); add.type='button'; add.textContent='＋ Add videos / songs'; add.onclick=()=>inp.click(); head.querySelector('.lib-tools').appendChild(add); head.appendChild(inp);
     body.appendChild(head);
+    body.appendChild(this.plSection());
     const mk=(arr,title)=>{ if(!arr.length) return; const h=document.createElement('div'); h.className='ply-h'; h.textContent=title; body.appendChild(h); arr.forEach(it=>body.appendChild(this.row(it,inp))); };
     const prog=(it)=>{ const m=M[it.fid]; return m&&m.dur?m.pos/m.dur:0; };
     const vids=this.q.filter(i=>i.kind==='video').sort((a,b)=>String(a.ai&&a.ai.title||a.title).localeCompare(String(b.ai&&b.ai.title||b.title))||(a.ep-b.ep));
     mk(vids.filter(i=>{ const p=prog(i); return p>0.03&&p<0.95; }),'▶ Continue watching');
     mk(vids,'🎞 Videos'); mk(this.q.filter(i=>i.kind==='audio'),'🎵 Music');
     if(!this.q.length){ const e=document.createElement('div'); e.className='feed-empty'; e.innerHTML='<div>Nothing here yet. Tap “Add videos / songs” and pick as many as you like. Anime files are recognised from their names and added to your anime list as you watch.</div>'; body.appendChild(e); }
+  },
+  /* ---------- playlists (songs and videos) ---------- */
+  pls(){ const c=Config.state; if(!Array.isArray(c.playlists)) c.playlists=[]; return c.playlists; },
+  plItems(pl,all){ const m={}; this.q.forEach(i=>{ m[i.fid]=i; }); return pl.items.map(f=>m[f]).filter(i=>i&&(all||i.file||i.kept)); },
+  plKind(pl){ const its=this.plItems(pl,true); if(!its.length) return 'empty'; const a=its.filter(i=>i.kind==='audio').length; return a===its.length?'songs':(a===0?'videos':'songs + videos'); },
+  plCreate(name,items){ name=String(name||'').trim().slice(0,40); if(!name) return null; const ex=this.pls().find(p=>p.name.toLowerCase()===name.toLowerCase()); if(ex) return ex; const pl={id:'pl'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,items:(items||[]).slice(),t:Date.now()}; this.pls().push(pl); Config.save(); return pl; },
+  plAdd(pl,it){ if(pl.items.indexOf(it.fid)>=0) return false; pl.items.push(it.fid); Config.save(); return true; },
+  plDel(pl){ const a=this.pls(), i=a.indexOf(pl); if(i>=0){ a.splice(i,1); if(this.pl&&this.pl.id===pl.id) this.pl=null; Config.save(); } },
+  plNorm(t){ return String(t||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\b(my|the|a|an|playlist|playlists|list|songs?|music|videos?|please|bro|on|shuffle|shuffled)\b/g,' ').replace(/\s+/g,' ').trim(); },
+  plFind(q){ const list=this.pls(); if(!list.length) return null; const n=this.plNorm(q); if(!n) return list.length===1?list[0]:null; let best=null, bs=0; list.forEach(p=>{ const pn=this.plNorm(p.name)||p.name.toLowerCase(); let sc; if(pn===n) sc=3; else if(pn.indexOf(n)>=0||n.indexOf(pn)>=0) sc=2; else sc=this.sim(pn,n); if(sc>bs){ bs=sc; best=p; } }); return bs>=0.34?best:null; },
+  async playPlaylist(pl,opt){
+    opt=opt||{}; await this.loadKept(); const its=this.plItems(pl);
+    if(!its.length) return {ok:false, why: pl.items.length?'files':'empty'};
+    const order=its.slice(); if(opt.shuffle){ for(let i=order.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=order[i]; order[i]=order[j]; order[j]=t; } }
+    this.pl={id:pl.id,name:pl.name,order:order,shuffle:!!opt.shuffle,rep:'off',base:its.slice()};
+    await this.open(order[0]); return {ok:true, n:order.length};
+  },
+  plShuffleNow(){ const p=this.pl; if(!p){ UI.toast('Play a playlist first, then shuffle.'); return; } const cur=this.q[this.cur]; p.shuffle=!p.shuffle; let o=p.base.slice(); if(p.shuffle){ for(let i=o.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=o[i]; o[i]=o[j]; o[j]=t; } const k=o.indexOf(cur); if(k>0){ o.splice(k,1); o.unshift(cur); } } p.order=o; this._plUi(); UI.toast(p.shuffle?'Shuffle on':'Shuffle off'); },
+  plRepeat(){ const p=this.pl; if(!p){ UI.toast('Play a playlist first.'); return; } p.rep = p.rep==='off'?'all':(p.rep==='all'?'one':'off'); this._plUi(); UI.toast(p.rep==='all'?'Repeat the playlist':(p.rep==='one'?'Repeat this one':'Repeat off')); },
+  _plUi(){ const s=document.getElementById('plyShuf'), r=document.getElementById('plyRep'); if(!s||!r) return; const p=this.pl; s.className=p&&p.shuffle?'on':''; r.className=p&&p.rep!=='off'?'on':''; r.textContent=p&&p.rep==='one'?'🔂':'🔁'; },
+  /** a bottom sheet: add this file to a playlist, or make a new one */
+  plPick(it){
+    document.querySelectorAll('.why-ov').forEach(n=>n.remove());
+    const ov=document.createElement('div'); ov.className='why-ov'; const card=document.createElement('div'); card.className='why-card'; ov.appendChild(card);
+    const x=document.createElement('button'); x.type='button'; x.className='why-x'; x.textContent='✕'; x.onclick=()=>ov.remove(); card.appendChild(x);
+    const t=document.createElement('div'); t.className='why-title'; t.textContent='Add to a playlist'; card.appendChild(t);
+    const p=document.createElement('div'); p.className='why-p'; p.textContent=it.title; card.appendChild(p);
+    const done=(pl,added)=>{ ov.remove(); UI.toast(added?('Added to “'+pl.name+'”'):('Already in “'+pl.name+'”'),'ok'); this.render(); };
+    this.pls().forEach(pl=>{ const b=document.createElement('button'); b.type='button'; b.className='pl-pick'; b.textContent='📃 '+pl.name+' · '+pl.items.length; b.onclick=()=>done(pl,this.plAdd(pl,it)); card.appendChild(b); });
+    const nb=document.createElement('button'); nb.type='button'; nb.className='pl-pick'; nb.textContent='＋ New playlist…'; nb.onclick=()=>{ const n=window.prompt('Name your playlist (like Gym or Chill)',''); if(!n||!n.trim()) return; const pl=this.plCreate(n); if(pl) done(pl,this.plAdd(pl,it)); }; card.appendChild(nb);
+    ov.addEventListener('click',(e)=>{ if(e.target===ov) ov.remove(); }); document.body.appendChild(ov);
+  },
+  plSection(){
+    const box=document.createElement('div'); box.className='pl-sec';
+    const h=document.createElement('div'); h.className='ply-h'; h.textContent='📃 Playlists'; box.appendChild(h);
+    const list=this.pls();
+    if(!list.length){ const e=document.createElement('div'); e.className='hint'; e.style.margin='0 2px 8px'; e.textContent='Make a playlist of songs, videos or both, then just say “play my gym playlist”. Tap “＋ Playlist” on any file below to start one.'; box.appendChild(e); }
+    list.forEach(pl=>{
+      const c=document.createElement('div'); c.className='feed-card pl-card';
+      const top=document.createElement('div'); top.className='pl-top'; const nm=document.createElement('b'); nm.textContent=pl.name; const kd=document.createElement('span'); kd.className='pl-kind'; kd.textContent=pl.items.length+' · '+this.plKind(pl); top.appendChild(nm); top.appendChild(kd); c.appendChild(top);
+      const act=document.createElement('div'); act.className='lib-act'; act.style.marginTop='8px';
+      const b=(txt,fn,on)=>{ const x=document.createElement('button'); x.type='button'; x.textContent=txt; if(on) x.className='on'; x.onclick=fn; act.appendChild(x); };
+      b('▶ Play',async()=>{ const r=await this.playPlaylist(pl); if(!r.ok) UI.toast(r.why==='files'?'Those files are not here. Add them again.':'This playlist is empty.','err'); },true);
+      b('🔀 Shuffle',async()=>{ const r=await this.playPlaylist(pl,{shuffle:true}); if(!r.ok) UI.toast(r.why==='files'?'Those files are not here. Add them again.':'This playlist is empty.','err'); });
+      b(pl._open?'▲ Hide':'▼ Songs',()=>{ pl._open=!pl._open; this.render(); });
+      b('✏',()=>{ const n=window.prompt('New name',pl.name); if(n&&n.trim()){ pl.name=n.trim().slice(0,40); Config.save(); this.render(); } });
+      b('🗑',()=>{ if(window.confirm('Delete the playlist “'+pl.name+'”? Your files stay.')){ this.plDel(pl); this.render(); } });
+      c.appendChild(act);
+      if(pl._open){ const li=document.createElement('div'); li.className='pl-items'; const its=this.plItems(pl,true); if(!its.length){ const e=document.createElement('div'); e.className='hint'; e.textContent='Empty. Tap “＋ Playlist” on a file below.'; li.appendChild(e); }
+        its.forEach(it=>{ const r=document.createElement('div'); r.className='pl-it'; const sp=document.createElement('span'); sp.textContent=(it.kind==='audio'?'🎵 ':'🎬 ')+it.title; const rm=document.createElement('button'); rm.type='button'; rm.textContent='✕'; rm.setAttribute('aria-label','Take out of playlist'); rm.onclick=()=>{ pl.items=pl.items.filter(f=>f!==it.fid); Config.save(); this.render(); }; r.appendChild(sp); r.appendChild(rm); li.appendChild(r); }); c.appendChild(li); }
+      box.appendChild(c);
+    });
+    const nw=document.createElement('button'); nw.type='button'; nw.className='pl-pick'; nw.textContent='＋ New playlist'; nw.onclick=()=>{ const n=window.prompt('Name your playlist (like Gym or Chill)',''); if(!n||!n.trim()) return; this.plCreate(n); this.render(); UI.toast('Playlist made. Tap “＋ Playlist” on a file to fill it.','ok'); }; box.appendChild(nw);
+    return box;
   },
   row(it,inp){
     const M=this.meta()[it.fid]||{}, card=document.createElement('div'); card.className='feed-card ply-row';
@@ -10025,7 +10152,8 @@ const Player = {
     if(M.dur){ const pr=document.createElement('div'); pr.className='lib-bar ply-bar'; const f=document.createElement('i'); f.style.width=Math.min(100,Math.round(M.pos/M.dur*100))+'%'; pr.appendChild(f); card.appendChild(pr); }
     const act=document.createElement('div'); act.className='lib-act';
     const b=(txt,fn,on)=>{ const x=document.createElement('button'); x.type='button'; x.textContent=txt; if(on) x.className='on'; x.onclick=fn; act.appendChild(x); };
-    b('▶ Play',()=>{ if(av) this.open(it); else inp.click(); },true);
+    b('▶ Play',()=>{ if(av){ this.pl=null; this.open(it); } else inp.click(); },true);
+    b('＋ Playlist',()=>this.plPick(it));
     if(it.file&&!it.kept) b('💾 Keep',()=>this.keep(it));
     b('🗑 Remove',()=>this.remove(it)); card.appendChild(act);
     return card;
@@ -10037,7 +10165,7 @@ const Player = {
     ov.innerHTML='<video id="plyV" playsinline preload="metadata"></video><div id="plyArt"><div class="ply-disc">🎵</div><div id="plyArtT"></div></div><div id="plyTouch"></div><div id="plyBadge"></div><div id="plyRip"></div>'
     +'<div class="ply-ctl ply-top"><button id="plyBack" aria-label="Back">←</button><div id="plyTitle"></div><button id="plyCC" aria-label="Subtitles">CC</button><button id="plyPip" aria-label="Small window">⧉</button><button id="plyRot" aria-label="Rotate">⟳</button></div>'
     +'<div class="ply-ctl ply-mid"><button id="plyPrev">⏮</button><button id="plyPlay" class="big">▶</button><button id="plyNext">⏭</button></div>'
-    +'<div class="ply-ctl ply-bot"><div class="ply-seek"><span id="plyT1">0:00</span><input id="plySeek" type="range" min="0" max="1000" value="0"><span id="plyT2">0:00</span></div><div class="ply-row2"><button id="plySpd">1×</button><button id="plyFit">Fit</button><button id="plyAuto" class="on">Auto-next</button><button id="plySubAdd">＋ Subtitles</button><button id="plyLock">🔒</button></div></div>'
+    +'<div class="ply-ctl ply-bot"><div class="ply-seek"><span id="plyT1">0:00</span><input id="plySeek" type="range" min="0" max="1000" value="0"><span id="plyT2">0:00</span></div><div class="ply-row2"><button id="plySpd">1×</button><button id="plyFit">Fit</button><button id="plyAuto" class="on">Auto-next</button><button id="plyShuf">🔀</button><button id="plyRep">🔁</button><button id="plySubAdd">＋ Subtitles</button><button id="plyLock">🔒</button></div></div>'
     +'<button id="plyUnlock">🔓 Tap to unlock</button>';
     document.body.appendChild(ov);
     const $=(i)=>document.getElementById(i); const v=$('plyV'); this.v=v;
@@ -10049,11 +10177,12 @@ const Player = {
     $('plySpd').onclick=()=>{ const i=this.speeds.indexOf(v.playbackRate); this.setRate(this.speeds[(i+1+this.speeds.length)%this.speeds.length]); };
     $('plyFit').onclick=()=>{ const c=v.style.objectFit==='cover'; v.style.objectFit=c?'contain':'cover'; $('plyFit').textContent=c?'Fit':'Fill'; };
     $('plyAuto').onclick=()=>{ this.auto=!this.auto; $('plyAuto').className=this.auto?'on':''; };
+    $('plyShuf').onclick=()=>this.plShuffleNow(); $('plyRep').onclick=()=>this.plRepeat();
     $('plyLock').onclick=()=>{ this.locked=true; ov.classList.add('locked'); ov.classList.remove('show'); };
     $('plyUnlock').onclick=()=>{ this.locked=false; ov.classList.remove('locked'); this.showCtl(); };
     const sk=$('plySeek'); sk.addEventListener('input',()=>{ if(v.duration) v.currentTime=sk.value/1000*v.duration; this.showCtl(); });
     v.addEventListener('timeupdate',()=>this.tick()); v.addEventListener('play',()=>this.sync()); v.addEventListener('pause',()=>{ this.sync(); this.saveNow(); });
-    v.addEventListener('ended',()=>{ this.saveNow(true); if(this.auto) this.step(1,true); });
+    v.addEventListener('ended',()=>{ this.saveNow(true); if(this.pl && this.pl.rep==='one'){ try{ v.currentTime=0; v.play().catch(()=>{}); }catch(e){} return; } if(this.auto || this.pl) this.step(1,true); });
     v.addEventListener('loadedmetadata',()=>this.onMeta()); v.addEventListener('error',()=>this.onErr());
     this.wireTouch($('plyTouch'));
     document.addEventListener('keydown',(e)=>{ if(!ov.classList.contains('open')) return; const k=e.key; if(k===' '||k==='k'){ e.preventDefault(); this.toggle(); } else if(k==='ArrowRight') this.skip(10); else if(k==='ArrowLeft') this.skip(-10); else if(k==='ArrowUp'){ v.volume=Math.min(1,v.volume+0.1); Extras.hud('🔊 '+Math.round(v.volume*100)+'%'); } else if(k==='ArrowDown'){ v.volume=Math.max(0,v.volume-0.1); Extras.hud('🔊 '+Math.round(v.volume*100)+'%'); } else if(k==='f') this.rotate(); else if(k==='m'){ v.muted=!v.muted; } else if(k==='Escape') this.close(); });
@@ -10062,6 +10191,7 @@ const Player = {
   },
   async open(it){
     this.build(); const i=this.q.indexOf(it); if(i<0) return; this.cur=i; const v=this.v, ov=this.ov;
+    if(this.pl && this.pl.order.indexOf(it)<0) this.pl=null; this._plUi();
     const url=await this.blobUrl(it); if(!url){ UI.toast('That file is not available. Add it again.','err'); return; }
     if(!ov.classList.contains('open')){ ov.classList.add('open'); Native.bars(true); try{ history.pushState({ply:1},''); }catch(e){}
       if(Config.state.plyFull!==false && it.kind==='video' && !Native.app()){ try{ const fr=ov.requestFullscreen&&ov.requestFullscreen(); if(fr&&fr.catch) fr.catch(()=>{}); }catch(e){} }
@@ -10078,7 +10208,8 @@ const Player = {
   toggle(){ const v=this.v; if(v.paused) v.play().catch(()=>{}); else v.pause(); },
   skip(s){ const v=this.v; if(!v.duration) return; v.currentTime=Math.min(v.duration,Math.max(0,v.currentTime+s)); this.ripple(s>0?'r':'l',s); },
   step(d,fromEnd){
-    const it=this.q[this.cur]; if(!it) return; let pool=this.q.filter(x=>x.kind===it.kind&&(x.file||x.kept)); let n=null;
+    const it=this.q[this.cur]; if(!it) return;
+    if(this.pl){ const o=this.pl.order, k=o.indexOf(it); if(k>=0){ let n=o[k+d]; if(!n && this.pl.rep==='all' && o.length) n=d>0?o[0]:o[o.length-1]; if(n){ this.open(n); return; } if(fromEnd) this.close(); return; } } let pool=this.q.filter(x=>x.kind===it.kind&&(x.file||x.kept)); let n=null;
     if(it.ai&&it.ep){ pool=pool.filter(x=>x.ai&&x.ai.key===it.ai.key&&x.ep).sort((a,b)=>a.ep-b.ep); const i=pool.indexOf(it); n=pool[i+d]||null; }
     if(!n){ pool=this.q.filter(x=>x.kind===it.kind&&(x.file||x.kept)); const i=pool.indexOf(it); n=pool[i+d]||null; }
     if(n) this.open(n); else if(fromEnd) this.close();
@@ -10753,6 +10884,7 @@ function bindEvents(){
   el.voiceIndicator.addEventListener('click', ()=>el.micBtn.click());
   wireVoice(el.searchMicBtn, el.searchInput, {onFinal:(t)=>UI.runSearch(t)});
 
+  try{ SB.init(); }catch(e){}
   // Search bar
   el.searchInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); UI.runSearch(el.searchInput.value); } });
   el.feedRefreshBtn.addEventListener('click', ()=>UI.loadFeedTab(UI.activeFeedTab));
@@ -11993,7 +12125,7 @@ const Extras = {
     this._t(()=>{ if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{ if(Config.state.theme==='auto') this.applyTheme(); }); });
     [()=>this.injectSettings(),()=>this.initB&&this.initB(),()=>this.initC&&this.initC(),()=>this.initD&&this.initD(),()=>this.initE&&this.initE(),()=>this.initF&&this.initF(),()=>this.initG&&this.initG(),()=>this.wireSlash(),()=>this.wireCounter(),()=>this.wireExplain(),()=>this.wirePull(),()=>this.wireDockTips(),()=>this.wireThemeGesture(),
      ()=>{ document.addEventListener('click', (e)=>{ if(e.target.closest('#attachPreview img')) this.annotate(); }); },
-     ()=>{ const sg=document.querySelector('#chatEmpty .suggestions'); if(sg){ const b=document.createElement('button'); b.type='button'; b.innerHTML='<span class="sg-ico">✨</span><span>Surprise me</span>'; b.addEventListener('click', ()=>UI.sendChat('/surprise')); sg.appendChild(b); } },
+     ()=>{ const sg=document.querySelector('#chatEmpty .suggestions'); if(sg){ const b=document.createElement('button'); b.type='button'; b.innerHTML='<span class="sg-ico">✨</span><span>Surprise me</span>'; b.addEventListener('click', ()=>UI.sendChat('/surprise')); sg.appendChild(b); const p=document.createElement('button'); p.type='button'; p.innerHTML='<span class="sg-ico">▶</span><span>Play my playlist</span>'; p.addEventListener('click', ()=>UI.sendChat('play my playlist')); sg.appendChild(p); } },
      ()=>{ const bar=document.createElement('div'); bar.id='folderBar'; const l=document.getElementById('chatsList'); l.parentNode.insertBefore(bar,l); }
     ].forEach(f=>this._t(f));
   }
@@ -13013,14 +13145,7 @@ const Browse = {
   EXT:{'video/mp4':'mp4','video/webm':'webm','video/x-matroska':'mkv','audio/mpeg':'mp3','audio/mp4':'m4a','audio/aac':'aac','audio/ogg':'ogg','audio/wav':'wav','audio/webm':'webm','video/ogg':'ogv'},
   st(){ const c=Config.state; c.browse=c.browse||{}; c.browse.recent=c.browse.recent||[]; return c.browse; },
   B(){ return (typeof Native!=='undefined'&&Native.app())?Native.P('BlitzBrowser'):null; },
-  _wire(){
-    if(this._wired) return; const B=this.B(); if(!B||!B.addListener) return; this._wired=true;
-    try{
-      B.addListener('page',(e)=>{ try{ if(!e||!e.url||/^about:/.test(e.url)) return; const S=this.st(); S.recent=[{url:e.url,title:e.title||e.url}].concat(S.recent.filter(x=>x.url!==e.url)).slice(0,8); Config.save(); }catch(x){} });
-      B.addListener('download',(e)=>{ try{ this.onFileLink(e); }catch(x){} });
-      B.addListener('closed',()=>{ try{ if(UI.activeFeedTab==='browse') this.show(); }catch(x){} });
-    }catch(e){}
-  },
+  _wire(){ SB.wire(); },
   /* the page asked to download a file */
   onFileLink(e){
     if(!e||!e.url) return; const mime=String(e.mimeType||'').toLowerCase(); let nm=''; try{ const m=/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(e.contentDisposition||''); nm=m?decodeURIComponent(m[1]):decodeURIComponent(new URL(e.url).pathname.split('/').pop()||''); }catch(x){}
@@ -13030,8 +13155,7 @@ const Browse = {
     UI.toast('Downloading… see the progress in the Browse tab'); this.download(e.url,null,null,null,{cookie:e.cookie,ua:e.userAgent,name:nm});
   },
   async nativeOpen(raw){
-    const B=this.B(); if(!B) return false; this._wire();
-    try{ await B.open({url:raw}); return true; }catch(e){ return false; }
+    if(!this.B()) return false; return await SB.load(raw);
   },
   norm(v){
     v=String(v||'').trim(); if(!v) return null;
@@ -13050,7 +13174,7 @@ const Browse = {
     const chips=h('div','lab-chips'); const sites=nat?[['YouTube','https://m.youtube.com/'],['Wikipedia','https://en.wikipedia.org/'],['DuckDuckGo','https://duckduckgo.com/'],['Internet Archive','https://archive.org/']]:[['Wikipedia','https://en.wikipedia.org/'],['Internet Archive','https://archive.org/']];
     sites.forEach(s=>{ const c=h('button','lab-chip',s[0]); c.type='button'; c.onclick=()=>open(s[1]); chips.appendChild(c); }); wrap.appendChild(chips);
     if(nat){ const rc=this.st().recent; if(rc.length){ wrap.appendChild(h('div','hint','Recent')); const rr=h('div','lab-chips'); rc.forEach(x=>{ const c=h('button','lab-chip',String(x.title).slice(0,26)); c.type='button'; c.onclick=()=>open(x.url); rr.appendChild(c); }); wrap.appendChild(rr); } }
-    wrap.appendChild(h('div','hint',nat?'The browser opens on top of Blitz. Use the ✕ button or the back button to come back. If a page offers a video or song file to download, Blitz asks to put it in My Media.':'Some sites do not allow being shown inside another app, and then the page stays blank. Use “Open in Chrome” for those.'));
+    wrap.appendChild(h('div','hint',nat?'The page opens in your Search tab, in Browser mode. Use the 🏠 button there to get back to the start page. If a page offers a video or song file to download, Blitz asks to put it in My Media.':'Some sites do not allow being shown inside another app, and then the page stays blank. Use “Open in Chrome” for those.'));
     const frWrap=h('div','brw-wrap hidden'); frWrap.id='brwWrap'; const tb=h('div','brw-tb'); const full=Lab.btn('⛶ Full screen',()=>{ frWrap.classList.toggle('brw-full'); full.textContent=frWrap.classList.contains('brw-full')?'✕ Exit full screen':'⛶ Full screen'; }); const ext=Lab.btn('↗ Open in Chrome',()=>{ if(cur) window.open(cur,'_blank'); }); const cls=Lab.btn('Close',()=>{ fr.src='about:blank'; frWrap.classList.add('hidden'); frWrap.classList.remove('brw-full'); full.textContent='⛶ Full screen'; cur=''; });
     tb.appendChild(full); tb.appendChild(ext); tb.appendChild(cls); frWrap.appendChild(tb);
     const fr=document.createElement('iframe'); fr.className='brw-frame'; fr.id='brwFrame'; fr.setAttribute('allow','autoplay; fullscreen; picture-in-picture; encrypted-media'); fr.setAttribute('allowfullscreen',''); fr.setAttribute('referrerpolicy','no-referrer'); fr.setAttribute('sandbox','allow-scripts allow-same-origin allow-forms allow-popups allow-presentation'); frWrap.appendChild(fr); wrap.appendChild(frWrap);
@@ -13096,7 +13220,195 @@ const Browse = {
   }
 };
 
+
+/* ---------------------------------------------------------------------- *
+ * SB — the browser inside the Search tab. The page draws the toolbar and
+ * the plugin only supplies the web view, placed exactly under it.
+ * ---------------------------------------------------------------------- */
+const SB = {
+  ENG:{ddg:['DuckDuckGo','https://duckduckgo.com/?q='], google:['Google','https://www.google.com/search?q=']},
+  PKG:{'youtube.com':'com.google.android.youtube','m.youtube.com':'com.google.android.youtube','youtu.be':'com.google.android.youtube','music.youtube.com':'com.google.android.apps.youtube.music',
+    'maps.google.com':'com.google.android.apps.maps','mail.google.com':'com.google.android.gm','drive.google.com':'com.google.android.apps.docs','play.google.com':'com.android.vending',
+    'reddit.com':'com.reddit.frontpage','github.com':'com.github.android','x.com':'com.twitter.android','twitter.com':'com.twitter.android','instagram.com':'com.instagram.android',
+    'facebook.com':'com.facebook.katana','open.spotify.com':'com.spotify.music','spotify.com':'com.spotify.music','wa.me':'com.whatsapp','web.whatsapp.com':'com.whatsapp','t.me':'org.telegram.messenger',
+    'netflix.com':'com.netflix.mediaclient','linkedin.com':'com.linkedin.android','pinterest.com':'com.pinterest','twitch.tv':'tv.twitch.android.app','discord.com':'com.discord',
+    'amazon.in':'in.amazon.mShop.android.shopping','amazon.com':'com.amazon.mShop.android.shopping','flipkart.com':'com.flipkart.android','crunchyroll.com':'com.crunchyroll.crunchyroid'},
+  alive:false, url:'', canBack:false, canFwd:false, _wired:false, _k:'', _logged:'',
+  B(){ return (typeof Native!=='undefined' && Native.app()) ? Native.P('BlitzBrowser') : null; },
+  st(){ const c=Config.state; c.sb = c.sb || {}; return c.sb; },
+  mode(){ return !!this.B() && this.st().mode==='browser'; },
+  appsOn(){ return this.st().apps!=='blitz'; },
+  eng(){ return this.st().engine==='google' ? 'google' : 'ddg'; },
+  pkgFor(u){ let h=''; try{ h=new URL(u).hostname.toLowerCase().replace(/^www\./,'').replace(/^m\./,''); }catch(e){ return ''; } if(this.PKG[h]) return this.PKG[h]; const k=Object.keys(this.PKG).find(x=>h.endsWith('.'+x)); return k?this.PKG[k]:''; },
+  $(id){ return document.getElementById(id); },
+
+  wire(){
+    if(this._wired) return; const B=this.B(); if(!B||!B.addListener) return; this._wired=true;
+    try{
+      B.addListener('start',(e)=>{ this._prog(8); });
+      B.addListener('progress',(e)=>{ this._prog(e&&e.p); });
+      B.addListener('page',(e)=>this._page(e));
+      B.addListener('done',(e)=>{ this._prog(100); this._visit(e); });
+      B.addListener('download',(e)=>{ try{ Browse.onFileLink(e); }catch(x){} });
+      B.addListener('closed',()=>{ this.alive=false; this._k=''; this._buttons(); if(this.mode()) this.renderHome(); });
+    }catch(e){}
+  },
+  _prog(p){ const el=this.$('sbProg'); if(!el) return; p=Math.max(0,Math.min(100,Number(p)||0)); el.style.opacity=p>=100?'0':'1'; el.style.width=p+'%'; if(p>=100) setTimeout(()=>{ if(el) el.style.width='0'; },250); },
+  _page(e){
+    if(!e||!e.url||/^about:/.test(e.url)) return;
+    this.url=e.url; this.canBack=!!e.canBack; this.canFwd=!!e.canForward; this._buttons();
+    const inp=UI.el.wsInput; if(inp && document.activeElement!==inp && this.mode()) inp.value=e.url;
+    try{ const S=Browse.st(); S.recent=[{url:e.url,title:e.title||e.url}].concat(S.recent.filter(x=>x.url!==e.url)).slice(0,8); Config.save(); }catch(x){}
+  },
+  /* Blitz only ever keeps the website name, on this phone, and not at all in private mode */
+  _visit(e){
+    try{ if(!e||!e.url||this.st().priv||Config.state.spaceNotes===false) return; const h=Space.host(e.url); if(!h||h===this._logged) return; this._logged=h; if(/^(duckduckgo\.com|google\.[a-z.]+)$/.test(h)) return; Space.log(h,'link'); }catch(x){}
+  },
+  _buttons(){
+    const set=(id,f)=>{ const b=this.$(id); if(b) f(b); };
+    set('sbBack',b=>b.disabled=!this.alive||!this.canBack); set('sbFwd',b=>b.disabled=!this.alive||!this.canFwd); set('sbReload',b=>b.disabled=!this.alive);
+    set('sbEng',b=>b.textContent=this.ENG[this.eng()][0]); set('sbPriv',b=>b.classList.toggle('on',!!this.st().priv));
+  },
+
+  init(){
+    if(this._init) return; this._init=true; const nat=!!this.B();
+    const sw=this.$('sbSwitch'); if(sw) sw.classList.toggle('on',nat);
+    const seg=(id,attr,get,set)=>{ const box=this.$(id); if(!box) return; box.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{ set(b.getAttribute(attr)); this.apply(); })); };
+    seg('sbMode','data-m',null,(m)=>this.setMode(m)); seg('sbApps','data-a',null,(a)=>{ this.st().apps=a; Config.save(); });
+    const B=()=>this.B(), call=(m,a)=>{ const b=B(); if(b&&b[m]) b[m](a||{}).catch(()=>{}); };
+    const on=(id,fn)=>{ const b=this.$(id); if(b) b.addEventListener('click',fn); };
+    on('sbBack',()=>call('back')); on('sbFwd',()=>call('forward')); on('sbReload',()=>call('reload'));
+    on('sbHome',()=>this.home());
+    on('sbEng',()=>{ this.st().engine=this.eng()==='ddg'?'google':'ddg'; Config.save(); this._buttons(); UI.toast('Searching with '+this.ENG[this.eng()][0]); });
+    on('sbPriv',()=>{ this.st().priv=!this.st().priv; Config.save(); this._buttons(); UI.toast(this.st().priv?'Private: Blitz will not remember sites from this browser':'Blitz can remember which sites you visit, on this phone only'); });
+    window.addEventListener('resize',()=>this.sync()); try{ if(window.visualViewport) window.visualViewport.addEventListener('resize',()=>this.sync()); }catch(e){}
+    try{ if(window.ResizeObserver){ const h=this.$('sbHost'); if(h) new ResizeObserver(()=>this.sync()).observe(h); } }catch(e){}
+    setInterval(()=>this.sync(),250);
+    this.apply();
+  },
+  setMode(m){ const st=this.st(); st.mode=(m==='browser'&&this.B())?'browser':'normal'; Config.save(); },
+  apply(){
+    const pane=this.$('paneSearch'); if(!pane) return; const m=this.mode();
+    pane.classList.toggle('sb-on',m);
+    const mb=this.$('sbMode'); if(mb) mb.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.getAttribute('data-m')===(m?'browser':'normal')));
+    const ab=this.$('sbApps'); if(ab) ab.querySelectorAll('button').forEach(b=>b.classList.toggle('on',b.getAttribute('data-a')===(this.appsOn()?'app':'blitz')));
+    const inp=UI.el&&UI.el.wsInput; if(inp) inp.placeholder = m ? 'Search or type a link' : 'Search or ask Blitz…';
+    this._buttons(); if(m && !this.alive) this.renderHome();
+    if(inp && m && this.alive && document.activeElement!==inp) inp.value=this.url||'';
+    this._k=''; this.sync();
+  },
+  renderHome(){
+    const host=this.$('sbHost'); if(!host) return; host.innerHTML=''; const w=document.createElement('div'); w.className='sb-home';
+    const t=document.createElement('div'); t.className='sb-hi'; t.textContent='Blitz browser'; const d=document.createElement('div'); d.className='sb-hd'; d.textContent='Type a word or a link in the bar above. Pages open right here, with Blitz around them. Or pick a site:'; w.appendChild(t); w.appendChild(d);
+    const grid=document.createElement('div'); grid.className='sp-dial';
+    Space.load().links.forEach((l)=>{ const tile=document.createElement('div'); tile.className='sp-tile'; const b=document.createElement('button'); b.type='button'; b.className='sp-tile-b'; const ic=document.createElement('span'); ic.className='sp-tile-ic'; ic.textContent=(l.t||'?')[0].toUpperCase(); ic.style.setProperty('--h',Space.hue(l.t)); const tx=document.createElement('span'); tx.className='sp-tile-t'; tx.textContent=l.t; b.appendChild(ic); b.appendChild(tx); b.onclick=()=>{ this.openLink(l.u); }; tile.appendChild(b); grid.appendChild(tile); });
+    w.appendChild(grid); host.appendChild(w);
+  },
+  async home(){ const B=this.B(); if(B&&this.alive){ try{ await B.close(); }catch(e){} } this.alive=false; this.url=''; this._k=''; this.canBack=this.canFwd=false; this._buttons(); const inp=UI.el.wsInput; if(inp){ inp.value=''; } this.renderHome(); },
+  sync(){
+    const B=this.B(); if(!B||!this.alive) return; const host=this.$('sbHost'); let vis=false, r={x:0,y:0,w:10,h:10};
+    const pane=this.$('paneSearch');
+    if(host && this.mode() && pane && pane.classList.contains('tab-active')){
+      const b=host.getBoundingClientRect(); r={x:b.left,y:b.top,w:b.width,h:b.height};
+      if(b.width>20 && b.height>20){ const pts=[[b.left+b.width/2,b.top+b.height/2],[b.left+10,b.top+10]]; vis=pts.every(p=>{ const e=document.elementFromPoint(p[0],p[1]); return !!e && (e===host||host.contains(e)); }); }
+    }
+    const k=[Math.round(r.x),Math.round(r.y),Math.round(r.w),Math.round(r.h),vis?1:0].join(','); if(k===this._k) return; this._k=k;
+    try{ B.bounds({x:r.x,y:r.y,w:r.w,h:r.h,visible:vis}).catch(()=>{}); }catch(e){}
+  },
+  /** Open a page (or a search) in the Blitz browser. */
+  async load(raw, kind){
+    const B=this.B(); if(!B) return false; raw=String(raw||'').trim(); if(!raw) return false; this.wire();
+    const c=kind?{type:kind,value:/^https?:\/\//i.test(raw)?raw:'https://'+raw}:UI.wsClassify(raw); let url;
+    if(c.type==='url') url=c.value; else{ url=this.ENG[this.eng()][1]+encodeURIComponent(raw); try{ if(!this.st().priv && Config.state.spaceNotes!==false) Space.log(raw,'search'); }catch(e){} }
+    if(!this.mode()){ this.setMode('browser'); }
+    UI.switchTab('search'); this.apply();
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    const host=this.$('sbHost'); if(!host) return false; const b=host.getBoundingClientRect();
+    try{
+      if(this.alive){ await B.go({url}); }
+      else{ host.innerHTML=''; await B.open({url,x:b.left,y:b.top,w:b.width,h:b.height}); this.alive=true; }
+      this.url=url; this._k=''; this._buttons(); this.sync(); const inp=UI.el.wsInput; if(inp && c.type!=='url') inp.value=raw; if(inp&&c.type==='url') inp.value=url; return true;
+    }catch(e){ this.alive=false; UI.toast('The browser could not open. Update the Blitz app to get it.','err'); return false; }
+  },
+  /** A tapped site or app link: the phone's own app if the switch says so and one exists, else the Blitz browser. */
+  async openLink(url){
+    const B=this.B();
+    if(!B){ const w=window.open(url,'_blank','noopener,noreferrer'); if(!w) UI.toast('Your browser blocked the pop-up — tap again.','err'); return; }
+    if(this.appsOn() && B.openApp){ const pkg=this.pkgFor(url); if(pkg){ try{ const r=await B.openApp({url,pkg}); if(r&&r.opened) return; }catch(e){} } }
+    return this.load(url,'url');
+  }
+};
+
+
+/* ---------------------------------------------------------------------- *
+ * Actions — plain talk that Blitz does by itself, no AI needed:
+ * "play my gym playlist", "shuffle chill", "open youtube", "go to my site".
+ * ---------------------------------------------------------------------- */
+const Actions = {
+  FILL:/^(?:(?:hey|hi|yo|ok|okay|bro|dude|blitz|please|pls|can you|could you|will you)[,!\s]+)+/i,
+  KNOWN:{youtube:'https://www.youtube.com','youtube music':'https://music.youtube.com',instagram:'https://www.instagram.com',spotify:'https://open.spotify.com',whatsapp:'https://web.whatsapp.com',
+    telegram:'https://t.me',netflix:'https://www.netflix.com',amazon:'https://www.amazon.in',flipkart:'https://www.flipkart.com',discord:'https://discord.com',twitch:'https://www.twitch.tv',
+    pinterest:'https://www.pinterest.com',linkedin:'https://www.linkedin.com',crunchyroll:'https://www.crunchyroll.com',facebook:'https://www.facebook.com',drive:'https://drive.google.com',
+    'google drive':'https://drive.google.com','play store':'https://play.google.com',maps:'https://maps.google.com','google maps':'https://maps.google.com',gmail:'https://mail.google.com',
+    google:'https://www.google.com',wikipedia:'https://en.wikipedia.org',reddit:'https://www.reddit.com',github:'https://github.com',twitter:'https://x.com',x:'https://x.com'},
+  n(t){ return String(t||'').toLowerCase().replace(/[^a-z0-9]+/g,''); },
+  clean(t){ let x=String(t||'').trim(); for(let i=0;i<4;i++){ const y=x.replace(this.FILL,''); if(y===x) break; x=y; } return x.replace(/[.!?]+$/,'').trim(); },
+  tabTo(id){ try{ UI.switchTab('right'); UI.activeFeedTab=id; UI.renderFeedTabs(); UI.loadFeedTab(id); }catch(e){} },
+  find(name){
+    const t=this.n(name); if(!t) return null; const links=Space.load().links;
+    let hit=links.find(l=>this.n(l.t)===t); if(hit) return hit.u;
+    hit=links.find(l=>{ const a=this.n(l.t); return a.length>=3 && (a.indexOf(t)>=0 || (t.length>=4 && t.indexOf(a)>=0)); }); if(hit) return hit.u;
+    const raw=String(name||'').toLowerCase().trim(); if(this.KNOWN[raw]) return this.KNOWN[raw];
+    const k=Object.keys(this.KNOWN).find(x=>this.n(x)===t); return k?this.KNOWN[k]:null;
+  },
+  async route(text){
+    const raw=this.clean(text); if(!raw || raw.length>140 || raw.charAt(0)==='/') return null;
+    /* ---- playlists ---- */
+    if(/\bplay\s*list/i.test(raw)){
+      const mk=raw.match(/^(?:make|create|start|add|build|new)\s+(?:me\s+)?(?:a\s+|an\s+)?(?:new\s+)?play\s*list(?:\s+(?:called|named))?\s*(.*)$/i);
+      if(mk){ const nm=(mk[1]||'').trim(); if(!nm) return {text:'What should I call it? Say “make a playlist called Gym”.',tool:'playlist'}; const pl=Player.plCreate(nm); return {text:'Made the playlist “'+pl.name+'”. Open 🎬 My Media and tap “＋ Playlist” on a song or video to fill it.',tool:'playlist'}; }
+      if(/^(?:show|open|see|list|view|what(?:'s| is| are)?)\b.*\bplay\s*lists?\b/i.test(raw) || /^(?:my\s+)?play\s*lists?\??$/i.test(raw)){ this.tabTo('player'); const ls=Player.pls(); return {text:ls.length?('Your playlists: '+ls.map(p=>p.name).join(', ')+'. Opened them in 🎬 My Media.'):'You have no playlists yet. Opened 🎬 My Media. Tap “＋ New playlist”.',tool:'playlist'}; }
+      if(/\b(?:play|shuffle|start|put on|run|open|resume)\b/i.test(raw)){
+        const shuffle=/\bshuffl/i.test(raw);
+        let name=raw.replace(/\b(?:play|shuffle|shuffled|start|put on|run|open|resume)\b/ig,' ').replace(/\bplay\s*lists?\b/ig,' ').replace(/\b(?:my|the|a|an|on|in|from|for|me|some|please|pls|bro|songs|song|music|videos|video)\b/ig,' ').replace(/\s+/g,' ').trim();
+        const ls=Player.pls();
+        if(!ls.length) return {text:'You have no playlists yet. Open 🎬 My Media, tap “＋ New playlist”, then add songs or videos to it.',tool:'playlist'};
+        let pl=Player.plFind(name); if(!pl && !name && ls.length===1) pl=ls[0];
+        if(!pl){ this.tabTo('player'); return {text:(name?'I could not find a playlist called “'+name+'”. ':'Which playlist? ')+'You have: '+ls.map(p=>p.name).join(', ')+'.',tool:'playlist'}; }
+        const r=await Player.playPlaylist(pl,{shuffle:shuffle});
+        if(!r.ok){ this.tabTo('player'); return {text:r.why==='files'?'“'+pl.name+'” has files that are not saved in Blitz. Open 🎬 My Media and add them again.':'“'+pl.name+'” is empty. Open 🎬 My Media and tap “＋ Playlist” on a song or video.',tool:'playlist'}; }
+        return {text:(shuffle?'Shuffling':'Playing')+' “'+pl.name+'” ('+r.n+' item'+(r.n===1?'':'s')+').',tool:'playlist'};
+      }
+    }
+    /* ---- open an app tab, a saved site, or a web address ---- */
+    const m=raw.match(/^(open|go to|goto|launch|take me to|visit|show me)\s+(?:the\s+|my\s+)?(.+)$/i);
+    if(m){
+      const verb=m[1].toLowerCase(); let t=m[2].replace(/\s+(?:app|website|site|page|please|pls|for me)$/i,'').replace(/^(?:the|my)\s+/i,'').trim(); if(!t) return null;
+      const tabs={'my media':'player','media':'player','player':'player','music':'player','my videos':'player','code lab':'code','code':'code','browse':'browse','anime':'anime','manga':'manga','feed':'anime'};
+      if(tabs[t.toLowerCase()]){ this.tabTo(tabs[t.toLowerCase()]); return {text:'Opened '+t+'.',tool:'open'}; }
+      if(/^search(?: tab)?$/i.test(t)){ UI.switchTab('search'); return {text:'Opened Search.',tool:'open'}; }
+      if(/^(?:settings|stats|statistics|chat|history|help)$/i.test(t)) return null;
+      let url=this.find(t);
+      if(!url && /^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:[\/?#]\S*)?$/i.test(t)) url='https://'+t;
+      if(url){ UI.spOpen(url); return {text:'Opening '+(Space.host(url)||t)+(Native.app()&&SB.appsOn()&&SB.pkgFor(url)?' in its app.':'.'),tool:'open'}; }
+      if(/^(?:go to|goto|take me to|visit|launch)$/.test(verb) && t.split(/\s+/).length<=3){
+        InternalState.onEvent('tool_used'); UI.switchTab('search'); UI.wsSubmit(t,'search');
+        return {text:'I do not have “'+t+'” saved, so I searched for it. To open it straight away next time, add it to the quick launcher in the Search tab (＋) with its address.',tool:'search'};
+      }
+    }
+    return null;
+  }
+};
+
 const PATCH_NOTES = [
+  {ver:'4.2', label:'Switch', items:[
+    'Search tab now has a 🔎 Search / 🌐 Browser switch. In Browser mode, everything you search or type opens in a Blitz browser right inside the tab, with the same search bar and look. Needs the updated app (new build).',
+    'New “Apps” switch: ON opens YouTube, Maps, Instagram and other links in their own phone app (falls back to Blitz if the app is not installed), OFF keeps everything inside Blitz. It works for quick links and chat links too.',
+    'Playlists for songs and videos in 🎬 My Media: make them, add files with “＋ Playlist”, shuffle, repeat. Say “play my gym playlist” or “shuffle chill” in chat or by voice.',
+    'Talk to Blitz: “open youtube”, “go to animerex” (add it to quick links first), “open my media”. No AI needed.',
+    'Better mic: it no longer cuts you off in a pause, hears quiet speech, and knows your playlist and site names so they come out spelled right.',
+    'Tidier chat bar and Search switches.'
+  ]},
   {ver:'4.1', label:'Browser', items:[
     'A real in-app browser (Feed → 🌐 Browse): opens on top of Blitz with back, forward, reload, an address bar that also searches, full screen video and your normal websites and YouTube. Video and song downloads offered by a page can go straight into My Media. Needs the updated app build'
   ]},
