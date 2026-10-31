@@ -1874,6 +1874,68 @@ html[data-theme="dark"] .lab-idea textarea,html[data-theme="dark"] .lab-ed,html[
 html[data-theme="dark"] .pl-pick{background:rgba(255,255,255,.08);}
 #plyRep.on,#plyShuf.on{background:var(--spark);color:#fff;}
 
+
+/* ---- Glow: living sky, skins, motion, surprise, focus, daily card -------- */
+#skyTint{position:fixed;inset:0;z-index:0;pointer-events:none;transition:background 4s ease;mix-blend-mode:soft-light;}
+html[data-sky="off"] #skyTint{display:none;}
+@keyframes paneFade{from{opacity:0}to{opacity:1}}
+.tab-active{animation:paneFade .24s ease-out both;}
+button:active:not(:disabled){transform:scale(.96);}
+.fx-p{position:fixed;z-index:99998;pointer-events:none;font-size:16px;animation:fxUp .95s ease-out forwards;}
+@keyframes fxUp{0%{opacity:1;transform:translate(0,0) scale(.6)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.25)}}
+html[data-skin="ocean"]{--accent:#1E88C7;--accent-bright:#34A8E8;--accent-dim:#176B9E;--accent-hi:#BFE6FA;--spark:#0F5FD6;--accent-glow:0 0 14px rgba(52,168,232,.6);}
+html[data-skin="ocean"]:not([data-theme="dark"]){--bg-grad-1:#D3EAF8;--bg-grad-2:#CBE4F4;--bg-grad-3:#D5ECF2;--bg-grad-4:#E2F3F8;}
+html[data-skin="sakura"]{--accent:#D9457B;--accent-bright:#F27BA0;--accent-dim:#B02F60;--accent-hi:#FFD3E1;--spark:#C2307E;--accent-glow:0 0 14px rgba(242,123,160,.6);}
+html[data-skin="sakura"]:not([data-theme="dark"]){--bg-grad-1:#FBDDE8;--bg-grad-2:#F9D3E0;--bg-grad-3:#F6D9E4;--bg-grad-4:#FDE8EF;}
+html[data-skin="neon"]{--accent:#19E3C3;--accent-bright:#3DF5D8;--accent-dim:#10B39A;--accent-hi:#9BFCEB;--accent-ink:#06121A;--spark:#B04DFF;--accent-glow:0 0 16px rgba(61,245,216,.7);}
+html[data-skin="neon"][data-theme="dark"]{--bg-grad-1:#05060F;--bg-grad-2:#0A0720;--bg-grad-3:#0B0A26;--bg-grad-4:#050812;}
+html[data-skin="pumpkin"]{--accent:#FF8A1F;--accent-bright:#FFA63D;--accent-dim:#C96A10;--accent-hi:#FFD08A;--accent-ink:#1A0B02;--spark:#B26BFF;--accent-glow:0 0 16px rgba(255,138,31,.7);}
+html[data-skin="pumpkin"][data-theme="dark"]{--bg-grad-1:#120A06;--bg-grad-2:#1A0D17;--bg-grad-3:#1E0F2E;--bg-grad-4:#0F0713;}
+#pumpkinOv{position:fixed;inset:0;z-index:100001;overflow:hidden;background:radial-gradient(circle at 50% 42%,rgba(90,34,120,.94),rgba(10,4,20,.98));display:flex;align-items:center;justify-content:center;animation:paneFade .5s ease both;}
+#pumpkinOv .pk-card{position:relative;text-align:center;color:#FFD9A8;padding:24px;max-width:320px;}
+#pumpkinOv .pk-big{font-size:88px;line-height:1;animation:pkBob 2.2s ease-in-out infinite;filter:drop-shadow(0 0 26px #ff8a1f);}
+#pumpkinOv .pk-t{font-size:23px;font-weight:800;margin:8px 0 6px;}
+#pumpkinOv .pk-s{font-size:13.5px;opacity:.92;line-height:1.55;}
+#pumpkinOv .pk-x{margin-top:14px;font-size:12px;opacity:.7;}
+.pk-bat{position:absolute;left:-14vw;font-size:26px;animation:pkBat linear forwards;}
+@keyframes pkBat{0%{transform:translate(0,0) rotate(-8deg)}25%{transform:translate(35vw,-6vh) rotate(8deg)}50%{transform:translate(70vw,5vh) rotate(-8deg)}75%{transform:translate(105vw,-4vh) rotate(8deg)}100%{transform:translate(140vw,3vh)}}
+.pk-float{position:absolute;bottom:-12vh;opacity:.85;animation:pkRise linear forwards;}
+@keyframes pkRise{to{transform:translateY(-120vh) rotate(25deg)}}
+@keyframes pkBob{50%{transform:translateY(-10px) scale(1.04)}}
+#pumpkinBtn{background:none;border:none;font-size:17px;padding:0 4px;animation:pkWig 1.6s ease-in-out infinite;vertical-align:middle;}
+@keyframes pkWig{0%,100%{transform:rotate(0)}20%{transform:rotate(-14deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(6deg)}}
+#focusPill{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 6px);transform:translateX(-50%);z-index:9500;display:none;align-items:center;gap:8px;padding:6px 8px 6px 12px;border-radius:999px;background:rgba(20,20,30,.82);color:#fff;font-size:13px;font-weight:700;backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.25);}
+#focusPill.on{display:flex;}
+#focusPill button{background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:999px;width:24px;height:24px;font-size:12px;}
+#dailyCard{margin:12px auto 4px;max-width:340px;text-align:left;padding:12px 14px;border-radius:18px;background:var(--glass-bg-strong);border:1px solid var(--glass-border);box-shadow:var(--shadow-glass);}
+#dailyCard .dc-hi{font-size:13.5px;font-weight:800;color:var(--text);margin-bottom:8px;}
+#dailyCard .dc-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+#dailyCard .dc-chip{background:rgba(255,255,255,.5);border:1px solid var(--glass-border);color:var(--text);border-radius:999px;padding:6px 11px;font-size:12px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+html[data-theme="dark"] #dailyCard .dc-chip{background:rgba(255,255,255,.09);}
+#dailyCard .dc-tip{font-size:11.5px;line-height:1.45;color:var(--text-dim);}
+.sb-later{padding:0 2px;}
+.sb-lrow{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:12.5px;}
+.sb-lrow button.sb-lt{flex:1;text-align:left;background:none;border:none;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0;font-size:12.5px;}
+.sb-lrow button.sb-lx{background:none;border:none;color:var(--text-faint);font-size:14px;padding:2px 6px;}
+
+
+/* ---- Browser tabs + menu ---- */
+.sb-tabs{flex:none;display:flex;gap:6px;align-items:center;overflow-x:auto;padding:6px 8px 0;scrollbar-width:none;}
+.sb-tabs::-webkit-scrollbar{display:none;}
+.sb-tabs.hidden,.sb-tabs:empty{display:none;}
+.sb-tab{flex:none;display:inline-flex;align-items:center;gap:2px;max-width:150px;background:rgba(255,255,255,0.4);border:1px solid var(--glass-border);border-radius:var(--radius-pill);padding:2px 2px 2px 10px;font-size:12px;font-weight:600;color:var(--text-dim);}
+.sb-tab.on{background:var(--spark);border-color:var(--spark);color:#fff;}
+.sb-tab .sb-tn{background:none;border:none;color:inherit;font:inherit;max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:5px 0;}
+.sb-tab .sb-tx{background:none;border:none;color:inherit;opacity:.7;font-size:12px;padding:5px 7px;}
+.sb-tabs .sb-plus{flex:none;position:sticky;right:0;background:rgba(255,255,255,0.4);border:1px solid var(--glass-border);color:var(--text);border-radius:50%;width:30px;height:30px;font-size:16px;line-height:1;}
+.sb-b{min-width:34px;padding:0 6px;}
+.sbm-note{font-size:12px;color:var(--text-faint);margin:2px 0 8px;line-height:1.45;}
+.sbm-out{white-space:pre-wrap;font-size:13.5px;line-height:1.55;color:var(--text);background:rgba(255,255,255,.45);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0;max-height:46vh;overflow:auto;}
+html[data-theme="dark"] .sbm-out{background:rgba(255,255,255,.07);}
+.sbm-in{width:100%;box-sizing:border-box;border:1px solid var(--line);background:rgba(255,255,255,.55);color:var(--text);border-radius:12px;padding:10px 12px;font-size:14px;margin:6px 0;}
+html[data-theme="dark"] .sbm-in{background:rgba(255,255,255,.08);}
+.sbm-read{font-size:16px;line-height:1.65;color:var(--text);} .sbm-read h2,.sbm-read h3,.sbm-read h4{margin:16px 0 6px;font-family:var(--font-display);} .sbm-read p{margin:0 0 12px;} .sbm-read li{margin:0 0 8px 18px;}
+
 /* ---- Search tab: Normal / Browser switch + embedded browser ------------- */
 .sb-switch{flex:none;display:none;gap:8px;align-items:center;flex-wrap:wrap;padding:0 2px;}
 .sb-switch.on{display:flex;}
@@ -2078,14 +2140,17 @@ html[data-theme="dark"] .pl-pick{background:rgba(255,255,255,.08);}
       <div class="ws-suggest hidden" id="wsSuggest"></div>
       <div class="ws-modes" id="wsModes"></div>
       <div class="sb-wrap" id="sbWrap">
+        <div class="sb-tabs" id="sbTabs" aria-label="Browser tabs"></div>
         <div class="sb-bar">
           <button type="button" class="sb-b" id="sbBack" aria-label="Back">◀</button>
           <button type="button" class="sb-b" id="sbFwd" aria-label="Forward">▶</button>
           <button type="button" class="sb-b" id="sbReload" aria-label="Reload">⟳</button>
           <button type="button" class="sb-b" id="sbHome" aria-label="Start page">🏠</button>
+          <button type="button" class="sb-b" id="sbLater" aria-label="Read later" title="Save this page for later">🔖</button>
           <span class="sb-sp"></span>
           <button type="button" class="sb-b sb-t" id="sbEng" title="Search engine">DuckDuckGo</button>
           <button type="button" class="sb-b sb-t" id="sbPriv" title="Private: Blitz will not remember pages you visit here">🕶</button>
+          <button type="button" class="sb-b" id="sbMenu" aria-label="More" title="More">⋯</button>
         </div>
         <div class="sb-prog"><i id="sbProg"></i></div>
         <div class="sb-host" id="sbHost"></div>
@@ -2813,7 +2878,7 @@ html[data-theme="dark"] .pl-pick{background:rgba(255,255,255,.08);}
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '4.2', label: 'Switch' };
+const BLITZ_VERSION = { number: '4.4', label: 'Tabs' };
 
 const Utils = {
   uid(prefix){
@@ -9244,7 +9309,7 @@ Object.assign(UI, {
   setSpView(v){ this.spView = v; this.spEdit=false; this.renderWsIdle(); const b=this.el.wsBody; if(b) b.scrollTop=0; },
   /** Search again from anywhere in Space (always a fresh query in the current tab). */
   spGo(q){ this.wsSubmit(q,'search'); },
-  spOpen(u){ if(Native.app()){ SB.openLink(u); return; } const w = window.open(u,'_blank','noopener,noreferrer'); if(!w) this.toast('Your browser blocked the pop-up — tap again.', 'err'); },
+  spOpen(u){ if(Focus.blocks(u)){ Focus.deny(); return; } if(Native.app()){ SB.openLink(u); return; } const w = window.open(u,'_blank','noopener,noreferrer'); if(!w) this.toast('Your browser blocked the pop-up — tap again.', 'err'); },
   _spChip(label, fn, cls){ const b=this._wsEl('button',cls||'sp-chip',label); b.type='button'; b.onclick=fn; return b; },
   _spHead(title, actionLabel, fn){
     const h=this._wsEl('div','sp-head'); h.appendChild(this._wsEl('div','ws-heading',title));
@@ -10885,6 +10950,7 @@ function bindEvents(){
   wireVoice(el.searchMicBtn, el.searchInput, {onFinal:(t)=>UI.runSearch(t)});
 
   try{ SB.init(); }catch(e){}
+  try{ Fun.init(); Focus.resume(); Daily.init(); }catch(e){ console.warn('Glow', e); }
   // Search bar
   el.searchInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); UI.runSearch(el.searchInput.value); } });
   el.feedRefreshBtn.addEventListener('click', ()=>UI.loadFeedTab(UI.activeFeedTab));
@@ -13248,15 +13314,18 @@ const SB = {
       B.addListener('start',(e)=>{ this._prog(8); });
       B.addListener('progress',(e)=>{ this._prog(e&&e.p); });
       B.addListener('page',(e)=>this._page(e));
-      B.addListener('done',(e)=>{ this._prog(100); this._visit(e); });
+      B.addListener('done',(e)=>{ this._prog(100); if(e&&e.blocked!=null) this.blockedN=e.blocked; this._visit(e); });
       B.addListener('download',(e)=>{ try{ Browse.onFileLink(e); }catch(x){} });
-      B.addListener('closed',()=>{ this.alive=false; this._k=''; this._buttons(); if(this.mode()) this.renderHome(); });
+      B.addListener('closed',()=>{ this.alive=false; this._k=''; this.tabs=[]; this.act=''; this.renderTabs(); this._buttons(); if(this.mode()) this.renderHome(); });
+      B.addListener('tabs',(e)=>{ try{ this.tabs=(e&&e.tabs)||[]; this.act=(e&&e.active)||''; this.renderTabs(); }catch(x){} });
+      B.addListener('linkmenu',(e)=>{ try{ if(e&&e.url) this.linkSheet(e.url); }catch(x){} });
+      B.addListener('focusblock',()=>{ try{ Focus.deny(); }catch(x){} });
     }catch(e){}
   },
   _prog(p){ const el=this.$('sbProg'); if(!el) return; p=Math.max(0,Math.min(100,Number(p)||0)); el.style.opacity=p>=100?'0':'1'; el.style.width=p+'%'; if(p>=100) setTimeout(()=>{ if(el) el.style.width='0'; },250); },
   _page(e){
     if(!e||!e.url||/^about:/.test(e.url)) return;
-    this.url=e.url; this.canBack=!!e.canBack; this.canFwd=!!e.canForward; this._buttons();
+    this.url=e.url; this.title=e.title||this.title||''; this.canBack=!!e.canBack; this.canFwd=!!e.canForward; this._buttons();
     const inp=UI.el.wsInput; if(inp && document.activeElement!==inp && this.mode()) inp.value=e.url;
     try{ const S=Browse.st(); S.recent=[{url:e.url,title:e.title||e.url}].concat(S.recent.filter(x=>x.url!==e.url)).slice(0,8); Config.save(); }catch(x){}
   },
@@ -13267,7 +13336,7 @@ const SB = {
   _buttons(){
     const set=(id,f)=>{ const b=this.$(id); if(b) f(b); };
     set('sbBack',b=>b.disabled=!this.alive||!this.canBack); set('sbFwd',b=>b.disabled=!this.alive||!this.canFwd); set('sbReload',b=>b.disabled=!this.alive);
-    set('sbEng',b=>b.textContent=this.ENG[this.eng()][0]); set('sbPriv',b=>b.classList.toggle('on',!!this.st().priv));
+    set('sbEng',b=>b.textContent=this.eng()==='ddg'?'DDG':'Google'); set('sbPriv',b=>b.classList.toggle('on',!!this.st().priv));
   },
 
   init(){
@@ -13278,9 +13347,11 @@ const SB = {
     const B=()=>this.B(), call=(m,a)=>{ const b=B(); if(b&&b[m]) b[m](a||{}).catch(()=>{}); };
     const on=(id,fn)=>{ const b=this.$(id); if(b) b.addEventListener('click',fn); };
     on('sbBack',()=>call('back')); on('sbFwd',()=>call('forward')); on('sbReload',()=>call('reload'));
-    on('sbHome',()=>this.home());
+    on('sbHome',()=>this.home()); on('sbMenu',()=>this.menu());
+    on('sbLater',()=>{ if(!this.alive||!this.url){ UI.toast('Open a page first, then save it.'); return; } const r=Later.add(this.url,this.title); UI.toast(r==='dupe'?'Already saved for later':(r?'🔖 Saved for later':'Cannot save this page'),r&&r!=='dupe'?'ok':''); });
     on('sbEng',()=>{ this.st().engine=this.eng()==='ddg'?'google':'ddg'; Config.save(); this._buttons(); UI.toast('Searching with '+this.ENG[this.eng()][0]); });
     on('sbPriv',()=>{ this.st().priv=!this.st().priv; Config.save(); this._buttons(); UI.toast(this.st().priv?'Private: Blitz will not remember sites from this browser':'Blitz can remember which sites you visit, on this phone only'); });
+    try{ this.renderTabs(); }catch(e){}
     window.addEventListener('resize',()=>this.sync()); try{ if(window.visualViewport) window.visualViewport.addEventListener('resize',()=>this.sync()); }catch(e){}
     try{ if(window.ResizeObserver){ const h=this.$('sbHost'); if(h) new ResizeObserver(()=>this.sync()).observe(h); } }catch(e){}
     setInterval(()=>this.sync(),250);
@@ -13302,11 +13373,11 @@ const SB = {
     const t=document.createElement('div'); t.className='sb-hi'; t.textContent='Blitz browser'; const d=document.createElement('div'); d.className='sb-hd'; d.textContent='Type a word or a link in the bar above. Pages open right here, with Blitz around them. Or pick a site:'; w.appendChild(t); w.appendChild(d);
     const grid=document.createElement('div'); grid.className='sp-dial';
     Space.load().links.forEach((l)=>{ const tile=document.createElement('div'); tile.className='sp-tile'; const b=document.createElement('button'); b.type='button'; b.className='sp-tile-b'; const ic=document.createElement('span'); ic.className='sp-tile-ic'; ic.textContent=(l.t||'?')[0].toUpperCase(); ic.style.setProperty('--h',Space.hue(l.t)); const tx=document.createElement('span'); tx.className='sp-tile-t'; tx.textContent=l.t; b.appendChild(ic); b.appendChild(tx); b.onclick=()=>{ this.openLink(l.u); }; tile.appendChild(b); grid.appendChild(tile); });
-    w.appendChild(grid); host.appendChild(w);
+    w.appendChild(grid); try{ this.bmSection(w); }catch(e){} try{ Later.section(w); }catch(e){} host.appendChild(w);
   },
-  async home(){ const B=this.B(); if(B&&this.alive){ try{ await B.close(); }catch(e){} } this.alive=false; this.url=''; this._k=''; this.canBack=this.canFwd=false; this._buttons(); const inp=UI.el.wsInput; if(inp){ inp.value=''; } this.renderHome(); },
+  async home(){ const B=this.B(); if(B&&this.alive){ try{ await B.close(); }catch(e){} } this.alive=false; this.url=''; this._k=''; this.tabs=[]; this.act=''; this.renderTabs(); this.canBack=this.canFwd=false; this._buttons(); const inp=UI.el.wsInput; if(inp){ inp.value=''; } this.renderHome(); },
   sync(){
-    const B=this.B(); if(!B||!this.alive) return; const host=this.$('sbHost'); let vis=false, r={x:0,y:0,w:10,h:10};
+    const B=this.B(); if(!B||!this.alive) return; this.pushBlock(); const host=this.$('sbHost'); let vis=false, r={x:0,y:0,w:10,h:10};
     const pane=this.$('paneSearch');
     if(host && this.mode() && pane && pane.classList.contains('tab-active')){
       const b=host.getBoundingClientRect(); r={x:b.left,y:b.top,w:b.width,h:b.height};
@@ -13319,6 +13390,7 @@ const SB = {
   async load(raw, kind){
     const B=this.B(); if(!B) return false; raw=String(raw||'').trim(); if(!raw) return false; this.wire();
     const c=kind?{type:kind,value:/^https?:\/\//i.test(raw)?raw:'https://'+raw}:UI.wsClassify(raw); let url;
+    if(c.type==='url' && Focus.blocks(c.value)){ Focus.deny(); return false; }
     if(c.type==='url') url=c.value; else{ url=this.ENG[this.eng()][1]+encodeURIComponent(raw); try{ if(!this.st().priv && Config.state.spaceNotes!==false) Space.log(raw,'search'); }catch(e){} }
     if(!this.mode()){ this.setMode('browser'); }
     UI.switchTab('search'); this.apply();
@@ -13326,12 +13398,13 @@ const SB = {
     const host=this.$('sbHost'); if(!host) return false; const b=host.getBoundingClientRect();
     try{
       if(this.alive){ await B.go({url}); }
-      else{ host.innerHTML=''; await B.open({url,x:b.left,y:b.top,w:b.width,h:b.height}); this.alive=true; }
+      else{ host.innerHTML=''; await B.open({url,x:b.left,y:b.top,w:b.width,h:b.height,desktop:!!this.st().desktop,adblock:this.st().adblock!==false}); this.alive=true; this._fk=-1; }
       this.url=url; this._k=''; this._buttons(); this.sync(); const inp=UI.el.wsInput; if(inp && c.type!=='url') inp.value=raw; if(inp&&c.type==='url') inp.value=url; return true;
     }catch(e){ this.alive=false; UI.toast('The browser could not open. Update the Blitz app to get it.','err'); return false; }
   },
   /** A tapped site or app link: the phone's own app if the switch says so and one exists, else the Blitz browser. */
   async openLink(url){
+    if(Focus.blocks(url)){ Focus.deny(); return; }
     const B=this.B();
     if(!B){ const w=window.open(url,'_blank','noopener,noreferrer'); if(!w) UI.toast('Your browser blocked the pop-up — tap again.','err'); return; }
     if(this.appsOn() && B.openApp){ const pkg=this.pkgFor(url); if(pkg){ try{ const r=await B.openApp({url,pkg}); if(r&&r.opened) return; }catch(e){} } }
@@ -13361,8 +13434,30 @@ const Actions = {
     const raw=String(name||'').toLowerCase().trim(); if(this.KNOWN[raw]) return this.KNOWN[raw];
     const k=Object.keys(this.KNOWN).find(x=>this.n(x)===t); return k?this.KNOWN[k]:null;
   },
+  async fun(raw){
+    const low=raw.toLowerCase().replace(/\s+/g,' ').trim(); let m;
+    if(/^(?:stop|end|cancel|turn off|quit)\s+(?:the\s+|my\s+)?(?:focus|pomodoro)(?:\s+(?:mode|timer|session))?$/.test(low)){ if(!Focus.on()) return {text:'Focus mode is not on.',tool:'focus'}; Focus.stop(false); return {text:'Focus mode ended.',tool:'focus'}; }
+    m=low.match(/^(?:(?:start|begin|turn on|enable|set|do|go into|put me in)\s+(?:a\s+|my\s+)?)?(?:focus|pomodoro)(?:\s+(?:mode|timer|session))?(?:\s+(?:for\s+)?(\d{1,3})\s*(?:m|min|mins|minutes?))?$/);
+    if(m && /(start|begin|turn on|enable|set|do|go into|put me in|mode|timer|session|\d)/.test(low)){ const mins=Focus.start(m[1]||25); return {text:'🎯 Focus mode on for '+mins+' minutes. YouTube, Instagram, Reddit and other distractions are blocked inside Blitz until the timer ends. Say “stop focus” to end it.',tool:'focus'}; }
+    if(/^(?:cancel|stop|turn off)\s+(?:the\s+)?sleep timer$/.test(low)){ Fun.cancelSleep(); return {text:'Sleep timer cancelled.',tool:'sleep'}; }
+    m=low.match(/^(?:set\s+)?(?:a\s+)?sleep timer(?:\s+(?:for\s+)?(\d{1,3})\s*(?:m|min|mins|minutes?)?)?$/);
+    if(m){ const mins=+m[1]||30; Fun.sleepTimer(mins); return {text:'😴 Sleep timer set: the music will fade out in '+mins+' minutes.',tool:'sleep'}; }
+    if(/^(?:save|keep|bookmark|add)\s+(?:this\s+|it\s+|the\s+page\s+|this\s+page\s+)?(?:for|to)\s+(?:read\s*)?later$/.test(low) || /^read\s+(?:this\s+)?later$/.test(low)){
+      if(!SB.alive||!SB.url) return {text:'Open a page in the Blitz browser first, then say it again (or tap 🔖).',tool:'later'};
+      const r=Later.add(SB.url,SB.title); return {text:r==='dupe'?'That page is already saved for later.':(r?'🔖 Saved for later: '+(SB.title||SB.url):'I cannot save this page.'),tool:'later'}; }
+    if(/^(?:show |open |see |what(?:'s| is)(?: in)? )?(?:my )?(?:read later|saved for later|reading list)(?: list)?\??$/.test(low)){
+      if(!SB.B()) return {text:'The Blitz browser (and Read later) lives in the Android app.',tool:'later'};
+      SB.setMode('browser'); UI.switchTab('search'); SB.apply(); await SB.home(); const n=Later.list().length; return {text:n?('You have '+n+' page'+(n===1?'':'s')+' saved. They are on the Blitz browser start page.'):'Nothing saved yet. Tap 🔖 in the Blitz browser to save a page.',tool:'later'}; }
+    if(/^(?:open |make |start |add )?(?:a )?new tab$/.test(low)){ if(!SB.alive) return {text:'Open a page in the Blitz browser first (Search tab, Browser mode), then say it again.',tool:'tabs'}; const ok=await SB.newTab(); return {text:ok?'Opened a new tab.':'I could not open a new tab.',tool:'tabs'}; }
+    if(/^close (?:this |the |my )?tab$/.test(low)){ if(!SB.alive||!SB.act) return {text:'No browser tab is open.',tool:'tabs'}; SB.closeTab(SB.act); return {text:'Closed the tab.',tool:'tabs'}; }
+    if(/^(?:bookmark|star) (?:this|it|this page)$/.test(low)){ if(!SB.alive) return {text:'Open a page in the Blitz browser first.',tool:'bookmark'}; const r=SB.bmToggle(); return {text:r?'★ Bookmarked: '+(SB.title||SB.url):'Bookmark removed.',tool:'bookmark'}; }
+    if(/^(?:summari[sz]e|sum up|tl;?dr)(?: this| the)?(?: page| site| article| website)?$/.test(low)){ if(!SB.alive) return {text:'Open a page in the Blitz browser first, then say “summarize this page”.',tool:'summary'}; UI.switchTab('search'); SB.askSheet('sum'); return {text:'Reading the page for you…',tool:'summary'}; }
+    const rt=Routines.match(low); if(rt) return {text:await Routines.run(rt),tool:'routine'};
+    return null;
+  },
   async route(text){
     const raw=this.clean(text); if(!raw || raw.length>140 || raw.charAt(0)==='/') return null;
+    const fx=await this.fun(raw); if(fx) return fx;
     /* ---- playlists ---- */
     if(/\bplay\s*list/i.test(raw)){
       const mk=raw.match(/^(?:make|create|start|add|build|new)\s+(?:me\s+)?(?:a\s+|an\s+)?(?:new\s+)?play\s*list(?:\s+(?:called|named))?\s*(.*)$/i);
@@ -13400,7 +13495,245 @@ const Actions = {
   }
 };
 
+/* ---------------------------------------------------------------------- *
+ * Later / Focus / Routines / Fun / Daily — the "Glow" round.
+ * ---------------------------------------------------------------------- */
+
+/* ---- SB, part 2: tabs, page menu, ask this page, reader, bookmarks ---- */
+Object.assign(SB,{
+  tabs:[], act:'', blockedN:0, _fk:-1,
+  EXTRACT:"(function(){try{var t=(document.body&&document.body.innerText)||'';var ps=[];var el=document.querySelector('article')||document.querySelector('main')||document.body;var ns=el.querySelectorAll('h1,h2,h3,p,li');for(var i=0;i<ns.length&&ps.length<400;i++){var x=(ns[i].innerText||'').trim();if(x.length>(ns[i].tagName.charAt(0)==='H'?2:40))ps.push([ns[i].tagName,x]);}return JSON.stringify({title:document.title,url:location.href,text:t.slice(0,15000),paras:ps});}catch(e){return JSON.stringify({title:'',url:'',text:'',paras:[]});}})()",
+  pushBlock(){ const k=Focus.on()?1:0; if(k===this._fk) return; this._fk=k; const B=this.B(); if(B&&B.setBlock) B.setBlock({hosts:k?Focus.BLOCK.join(','):''}).catch(()=>{}); },
+  pushOpts(){ const B=this.B(); if(B&&B.setOptions&&this.alive) B.setOptions({desktop:!!this.st().desktop,adblock:this.st().adblock!==false}).then((r)=>{ if(r&&r.blocked!=null) this.blockedN=r.blocked; }).catch(()=>{}); },
+  tabName(t){ let n=(t.title||'').trim(); if(!n){ n=Space.host(t.url)||'New tab'; } return n.length>18?n.slice(0,17)+'…':n; },
+  renderTabs(){
+    const el=this.$('sbTabs'); if(!el) return; el.innerHTML=''; el.classList.toggle('hidden',!this.alive&&!this.tabs.length); if(!this.tabs.length) return;
+    this.tabs.forEach(t=>{ const d=document.createElement('div'); d.className='sb-tab'+(t.id===this.act?' on':''); d.setAttribute('data-id',t.id);
+      const n=document.createElement('button'); n.type='button'; n.className='sb-tn'; n.textContent=this.tabName(t); n.onclick=()=>this.switchTo(t.id);
+      const x=document.createElement('button'); x.type='button'; x.className='sb-tx'; x.textContent='✕'; x.setAttribute('aria-label','Close tab'); x.onclick=(ev)=>{ ev.stopPropagation(); this.closeTab(t.id); };
+      d.appendChild(n); d.appendChild(x); el.appendChild(d); });
+    const p=document.createElement('button'); p.type='button'; p.className='sb-plus'; p.textContent='＋'; p.setAttribute('aria-label','New tab'); p.onclick=()=>this.newTab(); el.appendChild(p);
+    const a=el.querySelector('.sb-tab.on'); if(a&&a.scrollIntoView){ try{ a.scrollIntoView({inline:'nearest',block:'nearest'}); }catch(e){} }
+    const cur=this.tabs.find(t=>t.id===this.act); if(cur){ this.url=cur.url||this.url; this.title=cur.title||''; const inp=UI.el.wsInput; if(inp&&this.mode()&&document.activeElement!==inp) inp.value=this.url; }
+  },
+  async newTab(raw){
+    const B=this.B(); if(!B||!this.alive){ UI.toast('Open a page in the Blitz browser first.'); return false; }
+    const url=raw?(UI.wsClassify(raw).type==='url'?UI.wsClassify(raw).value:this.ENG[this.eng()][1]+encodeURIComponent(raw)):(this.eng()==='google'?'https://www.google.com/':'https://duckduckgo.com/');
+    if(Focus.blocks(url)){ Focus.deny(); return false; }
+    try{ await B.newTab({url}); return true; }catch(e){ UI.toast((e&&e.message)||'Could not open a new tab.','err'); return false; }
+  },
+  switchTo(id){ const B=this.B(); if(B&&id!==this.act) B.switchTab({id}).catch(()=>{}); },
+  closeTab(id){ const B=this.B(); if(B) B.closeTab({id}).catch(()=>{}); },
+  closeOthers(){ const B=this.B(); if(!B) return; this.tabs.filter(t=>t.id!==this.act).forEach(t=>B.closeTab({id:t.id}).catch(()=>{})); },
+  /* ---- sheets ---- */
+  sheet(title,sub){
+    document.querySelectorAll('.why-ov').forEach(n=>n.remove());
+    const ov=document.createElement('div'); ov.className='why-ov'; const card=document.createElement('div'); card.className='why-card'; ov.appendChild(card);
+    const x=document.createElement('button'); x.type='button'; x.className='why-x'; x.textContent='✕'; x.onclick=()=>ov.remove(); card.appendChild(x);
+    const t=document.createElement('div'); t.className='why-title'; t.textContent=title; card.appendChild(t);
+    if(sub){ const p=document.createElement('div'); p.className='why-p'; p.textContent=sub; card.appendChild(p); }
+    ov.addEventListener('click',(e)=>{ if(e.target===ov) ov.remove(); }); document.body.appendChild(ov); return {ov,card};
+  },
+  row(card,label,btn,fn,on){ const r=document.createElement('div'); r.className='why-row'; const sp=document.createElement('span'); sp.textContent=label; const b=document.createElement('button'); b.type='button'; b.textContent=btn; if(on) b.classList.add('on'); b.onclick=fn; r.appendChild(sp); r.appendChild(b); card.appendChild(r); return b; },
+  bm(){ const s=this.st(); if(!Array.isArray(s.bm)) s.bm=[]; return s.bm; },
+  bmHas(u){ return this.bm().some(x=>x.u===u); },
+  bmToggle(){ if(!this.alive||!this.url) return null; const l=this.bm(), i=l.findIndex(x=>x.u===this.url); if(i>=0){ l.splice(i,1); Config.save(); return false; } l.unshift({u:this.url,t:(this.title||Space.host(this.url)||this.url).slice(0,120)}); if(l.length>200) l.length=200; Config.save(); return true; },
+  bmSection(w){
+    const l=this.bm(); if(!l.length) return; const box=document.createElement('div'); box.className='sb-later';
+    const h=document.createElement('div'); h.className='sb-hi'; h.style.marginTop='14px'; h.textContent='★ Bookmarks ('+l.length+')'; box.appendChild(h);
+    l.slice(0,12).forEach(x=>{ const r=document.createElement('div'); r.className='sb-lrow'; const b=document.createElement('button'); b.type='button'; b.className='sb-lt'; b.textContent=x.t; b.onclick=()=>this.load(x.u,'url'); const d=document.createElement('button'); d.type='button'; d.className='sb-lx'; d.textContent='✕'; d.setAttribute('aria-label','Remove bookmark'); d.onclick=()=>{ this.bm().splice(this.bm().findIndex(y=>y.u===x.u),1); Config.save(); this.renderHome(); }; r.appendChild(b); r.appendChild(d); box.appendChild(r); });
+    w.appendChild(box);
+  },
+  menu(){
+    if(!this.alive){ UI.toast('Open a page first, then use this menu.'); return; }
+    const {ov,card}=this.sheet(this.title||Space.host(this.url)||'This page',this.url);
+    const close=()=>ov.remove();
+    this.row(card,'✨ Ask about this page','Ask',()=>{ close(); this.askSheet('ask'); });
+    this.row(card,'📝 Short summary','Summarize',()=>{ close(); this.askSheet('sum'); });
+    this.row(card,'📖 Clean reading view','Open',()=>{ close(); this.reader(); });
+    this.row(card,'🔖 Read later','Save',()=>{ const r=Later.add(this.url,this.title); UI.toast(r==='dupe'?'Already saved for later':(r?'Saved for later':'Cannot save this page'),r===true?'ok':''); close(); });
+    const bmb=this.row(card,'★ Bookmark',this.bmHas(this.url)?'Remove':'Add',()=>{ const r=this.bmToggle(); UI.toast(r?'Bookmarked':'Bookmark removed',r?'ok':''); close(); });
+    this.row(card,'＋ New tab','Open',()=>{ close(); this.newTab(); });
+    if(this.tabs.length>1) this.row(card,'Close the other tabs','Close',()=>{ this.closeOthers(); close(); });
+    const dk=this.row(card,'🖥 Computer version of sites',this.st().desktop?'On':'Off',()=>{ this.st().desktop=!this.st().desktop; Config.save(); dk.textContent=this.st().desktop?'On':'Off'; dk.classList.toggle('on',!!this.st().desktop); this.pushOpts(); },!!this.st().desktop);
+    const ab=this.row(card,'🛡 Block ads and trackers ('+this.blockedN+' blocked so far)',this.st().adblock!==false?'On':'Off',()=>{ this.st().adblock=!(this.st().adblock!==false); Config.save(); ab.textContent=this.st().adblock!==false?'On':'Off'; ab.classList.toggle('on',this.st().adblock!==false); this.pushOpts(); },this.st().adblock!==false);
+    const n=document.createElement('div'); n.className='sbm-note'; n.textContent='Ad blocking stops known ad and tracking sites. It cannot remove YouTube’s own ads.'; card.appendChild(n);
+    this.row(card,'Copy link','Copy',()=>{ try{ navigator.clipboard.writeText(this.url); UI.toast('Link copied'); }catch(e){ UI.toast('Could not copy','err'); } close(); });
+    this.row(card,'Open in your phone’s own browser','Open',()=>{ const B=this.B(); if(B&&B.openApp) B.openApp({url:this.url,pkg:''}).catch(()=>{}); close(); });
+  },
+  linkSheet(url){
+    const {ov,card}=this.sheet('Link',url); const close=()=>ov.remove();
+    this.row(card,'Open in a new tab','Open',()=>{ close(); this.newTab(url); });
+    this.row(card,'Open here','Open',()=>{ close(); this.load(url,'url'); });
+    this.row(card,'Read later','Save',()=>{ const r=Later.add(url,''); UI.toast(r==='dupe'?'Already saved for later':'Saved for later',r===true?'ok':''); close(); });
+    this.row(card,'Copy link','Copy',()=>{ try{ navigator.clipboard.writeText(url); UI.toast('Link copied'); }catch(e){} close(); });
+  },
+  async pageText(){
+    const B=this.B(); if(!B||!B.eval||!this.alive) throw new Error('Open a page first.');
+    const r=await B.eval({code:this.EXTRACT}); let v=r&&r.value; if(typeof v!=='string') throw new Error('Could not read this page.');
+    try{ let o=JSON.parse(v); if(typeof o==='string') o=JSON.parse(o); return o; }catch(e){ throw new Error('Could not read this page.'); }
+  },
+  async askSheet(mode){
+    const sum=mode==='sum'; const {ov,card}=this.sheet(sum?'Short summary':'Ask about this page',this.title||this.url);
+    const note=document.createElement('div'); note.className='sbm-note'; note.textContent='Only when you tap the button, the words on this page are sent to your AI (Gemini, or your local AI).'; card.appendChild(note);
+    const inp=document.createElement('input'); inp.type='text'; inp.className='sbm-in'; inp.placeholder='What do you want to know?'; if(!sum) card.appendChild(inp);
+    const out=document.createElement('div'); out.className='sbm-out'; out.style.display='none'; card.appendChild(out);
+    const go=document.createElement('button'); go.type='button'; go.className='why-btn go'; go.textContent=sum?'Summarize':'Ask'; card.appendChild(go);
+    const run=async()=>{
+      const q=(inp.value||'').trim(); if(!sum&&!q){ UI.toast('Type a question first.'); return; }
+      go.disabled=true; out.style.display='block'; out.textContent='Reading the page…';
+      try{
+        const pg=await this.pageText(); const text=(pg.text||'').trim(); if(text.length<40){ out.textContent='There is not much text on this page to read.'; go.disabled=false; return; }
+        out.textContent='Thinking…';
+        const system='You help someone understand the web page they are reading. Use only the page text you are given. If the page does not say, answer that it does not say. Use short, simple sentences.';
+        const user='Page title: '+(pg.title||'')+'\nPage address: '+(pg.url||'')+'\n\nPage text:\n'+text.slice(0,12000)+'\n\n'+(sum?'Task: Summarize this page in at most 5 short bullet points.':'Question: '+q);
+        const r=await Lab.ai(system,user,700); out.textContent=r&&r.ok?(r.text||'No answer.'):((r&&r.message)||'The AI could not answer.');
+      }catch(e){ out.textContent=(e&&e.message)||'Something went wrong.'; }
+      go.disabled=false;
+    };
+    go.onclick=run; if(!sum) inp.addEventListener('keydown',(e)=>{ if(e.key==='Enter') run(); }); else run();
+  },
+  async reader(){
+    const {ov,card}=this.sheet('Reading view',this.title||this.url); const out=document.createElement('div'); out.className='sbm-read'; out.textContent='Opening…'; card.appendChild(out);
+    try{
+      const pg=await this.pageText(); out.innerHTML=''; const ps=pg.paras||[];
+      if(!ps.length){ out.textContent=(pg.text||'There is nothing readable on this page.').slice(0,6000); return; }
+      ps.forEach(p=>{ const tag=p[0]; const e=document.createElement(tag==='H1'?'h2':(tag==='H2'||tag==='H3'?'h3':(tag==='LI'?'li':'p'))); e.textContent=p[1]; out.appendChild(e); });
+    }catch(e){ out.textContent=(e&&e.message)||'Could not read this page.'; }
+  }
+});
+
+const Later = {
+  list(){ const c=Config.state; if(!Array.isArray(c.later)) c.later=[]; return c.later; },
+  add(url,title){ if(!/^https?:/i.test(url||'')) return false; const l=this.list(); if(l.some(x=>x.u===url)) return 'dupe'; l.unshift({u:url,t:String(title||Space.host(url)||url).slice(0,120),ts:Date.now()}); if(l.length>100) l.length=100; Config.save(); return true; },
+  del(u){ const c=Config.state; c.later=this.list().filter(x=>x.u!==u); Config.save(); },
+  section(w){
+    const l=this.list(); if(!l.length) return; const box=document.createElement('div'); box.className='sb-later';
+    const h=document.createElement('div'); h.className='sb-hi'; h.style.marginTop='14px'; h.textContent='🔖 Read later ('+l.length+')'; box.appendChild(h);
+    l.slice(0,12).forEach(x=>{ const r=document.createElement('div'); r.className='sb-lrow'; const b=document.createElement('button'); b.type='button'; b.className='sb-lt'; b.textContent=x.t; b.onclick=()=>SB.load(x.u,'url'); const d=document.createElement('button'); d.type='button'; d.className='sb-lx'; d.textContent='✕'; d.setAttribute('aria-label','Remove'); d.onclick=()=>{ this.del(x.u); SB.renderHome(); }; r.appendChild(b); r.appendChild(d); box.appendChild(r); });
+    w.appendChild(box);
+  }
+};
+
+const Focus = {
+  BLOCK:['youtube.com','youtu.be','instagram.com','reddit.com','x.com','twitter.com','facebook.com','netflix.com','twitch.tv','discord.com','crunchyroll.com','tiktok.com','9gag.com'],
+  end:0, tm:null,
+  on(){ return this.end>Date.now(); },
+  fmt(){ const t=Math.max(0,Math.ceil((this.end-Date.now())/1000)); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); },
+  pill(){ let p=document.getElementById('focusPill'); if(!p){ p=document.createElement('div'); p.id='focusPill'; p.innerHTML='<span id="focusT"></span><button type="button" aria-label="End focus">✕</button>'; p.querySelector('button').onclick=()=>this.stop(false); document.body.appendChild(p); } p.classList.add('on'); return p; },
+  start(min){
+    min=Math.max(1,Math.min(180,Math.round(+min||25))); this.end=Date.now()+min*60000; this.mins=min; Config.state.focusEnd=this.end; Config.state.focusMins=min; Config.save();
+    this.pill(); clearInterval(this.tm); this.tm=setInterval(()=>this.tick(),1000); this.tick(); return min;
+  },
+  resume(){ const e=Config.state.focusEnd; if(e&&e>Date.now()){ this.end=e; this.mins=Config.state.focusMins||25; this.pill(); clearInterval(this.tm); this.tm=setInterval(()=>this.tick(),1000); this.tick(); } else if(e){ Config.state.focusEnd=0; Config.save(); } },
+  tick(){ if(!this.on()){ this.stop(true); return; } const t=document.getElementById('focusT'); if(t) t.textContent='🎯 '+this.fmt(); },
+  stop(done){ clearInterval(this.tm); this.end=0; Config.state.focusEnd=0; if(done){ Config.state.focusTotal=(Config.state.focusTotal||0)+(this.mins||0); } Config.save(); const p=document.getElementById('focusPill'); if(p) p.classList.remove('on');
+    if(done){ UI.toast('🎯 Focus done! '+(this.mins||'')+' minutes. Nice work.','ok'); try{ Fun.burst(innerWidth/2,innerHeight/3,18); Extras.haptic([30,60,30]); }catch(e){} } else UI.toast('Focus mode ended'); try{ Daily.render(); }catch(e){} },
+  blocks(url){ if(!this.on()) return false; let h=''; try{ h=new URL(url).hostname.toLowerCase().replace(/^www\./,'').replace(/^m\./,''); }catch(e){ return false; } return this.BLOCK.some(b=>h===b||h.endsWith('.'+b)); },
+  deny(){ UI.toast('🎯 Focus mode is on, '+this.fmt()+' left. Say “stop focus” to end it.','err'); }
+};
+
+const Routines = {
+  DEF:[
+    {id:'bed',name:'Wind down',say:/\b(wind down|bed ?time|going to (?:bed|sleep)|good ?night|sleep mode|night mode)\b/i,steps:[{t:'dark'},{t:'playlist',v:['sleep','calm','chill','night','lofi']},{t:'sleeptimer',v:30}]},
+    {id:'gym',name:'Gym mode',say:/\b(?:gym|workout|work out|exercise) mode\b|\bstart (?:my )?(?:gym|workout)\b/i,steps:[{t:'playlist',v:['gym','workout','pump','fitness'],shuffle:true}]},
+    {id:'study',name:'Study mode',say:/\b(?:study|homework|exam|reading) mode\b|\bstart studying\b/i,steps:[{t:'focus',v:25},{t:'playlist',v:['study','focus','lofi','lo-fi','calm','chill']}]}
+  ],
+  match(raw){ return this.DEF.find(r=>r.say.test(raw))||null; },
+  async run(r){
+    const out=[];
+    for(const st of r.steps){
+      if(st.t==='dark'){ Config.state.theme='dark'; Config.save(); try{ Extras.applyTheme(); }catch(e){} out.push('dark mode on'); }
+      else if(st.t==='focus'){ const m=Focus.start(st.v); out.push('focus for '+m+' minutes'); }
+      else if(st.t==='sleeptimer'){ Fun.sleepTimer(st.v); out.push('sleep timer '+st.v+' min'); }
+      else if(st.t==='playlist'){ let pl=null; for(const n of st.v){ pl=Player.plFind(n); if(pl) break; } if(!pl){ out.push('no “'+st.v[0]+'” playlist yet (make one named '+st.v[0]+' and I will play it)'); continue; } const res=await Player.playPlaylist(pl,{shuffle:!!st.shuffle}); out.push(res.ok?('playing “'+pl.name+'”'+(st.shuffle?' (shuffled)':'')):('“'+pl.name+'” has nothing to play yet')); }
+    }
+    return r.name+': '+out.join(', ')+'.';
+  }
+};
+
+const Fun = {
+  SKINS:{default:['Classic',''],ocean:['Ocean',''],sakura:['Sakura',''],neon:['Neon night','dark'],pumpkin:['Midnight Pumpkin 🎃','dark']},
+  SKY:[[5,'linear-gradient(180deg,rgba(255,170,120,.38),rgba(255,120,170,.16))'],[8,'linear-gradient(180deg,rgba(130,200,255,.14),rgba(255,255,255,0))'],[16,'linear-gradient(180deg,rgba(255,160,70,.32),rgba(255,90,130,.18))'],[19,'linear-gradient(180deg,rgba(120,80,210,.30),rgba(40,40,130,.24))'],[22,'linear-gradient(180deg,rgba(20,30,100,.38),rgba(10,10,45,.32))']],
+  init(){
+    const c=Config.state; let sk=c.skin||'default'; if(!this.SKINS[sk] || (sk==='pumpkin' && !c.pumpkin)) sk='default'; document.documentElement.dataset.skin=sk;
+    document.documentElement.dataset.sky=c.sky===false?'off':'on';
+    if(!document.getElementById('skyTint')){ const d=document.createElement('div'); d.id='skyTint'; document.body.insertBefore(d,document.body.firstChild); }
+    this.tint(); setInterval(()=>this.tint(),300000);
+    const wm=document.querySelector('#chatEmpty .wordmark'); if(wm){ let n=0,t=null; wm.addEventListener('click',()=>{ n++; clearTimeout(t); t=setTimeout(()=>{ n=0; },2000); if(n>=5){ n=0; this.surprise(); } }); }
+    const d=new Date(); if(d.getMonth()===9 && d.getDate()===31 && !c.pumpkin){ const nm=document.querySelector('.chat-header-name'); if(nm && !document.getElementById('pumpkinBtn')){ const b=document.createElement('button'); b.type='button'; b.id='pumpkinBtn'; b.textContent='🎃'; b.setAttribute('aria-label','A surprise'); b.onclick=()=>this.surprise(); nm.appendChild(b); } }
+    try{ const o=UI.toast.bind(UI); UI.toast=(m,t)=>{ o(m,t); if(t==='ok'){ try{ this.burst(innerWidth/2,innerHeight-120,7); }catch(e){} } }; }catch(e){}
+    let tries=0; const tm=setInterval(()=>{ tries++; if(this.inject()||tries>20) clearInterval(tm); },700);
+  },
+  tint(){ const el=document.getElementById('skyTint'); if(!el) return; const h=new Date().getHours(); let g=this.SKY[this.SKY.length-1][1]; for(const k of this.SKY){ if(h>=k[0]) g=k[1]; } if(h<5) g=this.SKY[this.SKY.length-1][1]; el.style.background=g; },
+  setSky(on){ Config.state.sky=!!on; Config.save(); document.documentElement.dataset.sky=on?'on':'off'; },
+  setSkin(id){
+    const c=Config.state; if(!this.SKINS[id]) return false; if(id==='pumpkin' && !c.pumpkin){ UI.toast('🔒 That one is a secret. Keep poking around.'); return false; }
+    c.skin=id; if(this.SKINS[id][1]==='dark'){ c.theme='dark'; } Config.save(); document.documentElement.dataset.skin=id; try{ Extras.applyTheme(); }catch(e){} const s=document.getElementById('cfgSkin'); if(s) s.value=id; return true;
+  },
+  inject(){
+    const look=document.getElementById('extrasLook'); if(!look) return false; if(document.getElementById('cfgSkin')) return true;
+    const d=document.createElement('div'); d.innerHTML='<div class="section-label">Style &amp; surprises</div>'
+      +'<div class="field"><label for="cfgSkin">Colour style</label><select id="cfgSkin"></select><div class="hint">Neon night switches to dark mode. One style is a secret. 🎃</div></div>'
+      +'<div class="row-between field"><div><label style="margin:0;">Living background</label><div class="hint">The colours of the sky behind Blitz follow the time of day.</div></div><label class="switch"><input type="checkbox" id="cfgSky"><span class="track"></span><span class="knob"></span></label></div>';
+    look.appendChild(d); this.fillSkins(); const sel=document.getElementById('cfgSkin'); sel.onchange=()=>{ if(!this.setSkin(sel.value)) sel.value=Config.state.skin||'default'; };
+    const sk=document.getElementById('cfgSky'); sk.checked=Config.state.sky!==false; sk.onchange=()=>this.setSky(sk.checked); return true;
+  },
+  fillSkins(){ const sel=document.getElementById('cfgSkin'); if(!sel) return; sel.innerHTML=''; Object.keys(this.SKINS).forEach(k=>{ if(k==='pumpkin' && !Config.state.pumpkin) return; const o=document.createElement('option'); o.value=k; o.textContent=this.SKINS[k][0]; sel.appendChild(o); }); sel.value=Config.state.skin||'default'; },
+  burst(x,y,n){ const em=['✨','⭐','💫','🌟']; for(let i=0;i<(n||8);i++){ const e=document.createElement('span'); e.className='fx-p'; e.textContent=em[i%em.length]; e.style.left=x+'px'; e.style.top=y+'px'; const a=Math.random()*Math.PI*2, r=40+Math.random()*70; e.style.setProperty('--dx',Math.round(Math.cos(a)*r)+'px'); e.style.setProperty('--dy',Math.round(Math.sin(a)*r-30)+'px'); document.body.appendChild(e); setTimeout(()=>e.remove(),1000); } },
+  sleepTimer(min){
+    clearTimeout(this._st); min=Math.max(1,Math.min(240,Math.round(+min||30)));
+    this._st=setTimeout(()=>{ const v=Player.v; if(v&&!v.paused){ let k=10; const f=setInterval(()=>{ k--; try{ v.volume=Math.max(0,k/10); }catch(e){} if(k<=0){ clearInterval(f); try{ v.pause(); v.volume=1; }catch(e){} try{ Player.close(); }catch(e){} UI.toast('😴 Sleep timer: music stopped. Good night!'); } },1000); } else UI.toast('😴 Sleep timer finished'); },min*60000);
+  },
+  cancelSleep(){ clearTimeout(this._st); this._st=null; },
+  surprise(){
+    if(document.getElementById('pumpkinOv')) return; const c=Config.state; const first=!c.pumpkin; c.pumpkin=true; Config.save(); const pb=document.getElementById('pumpkinBtn'); if(pb) pb.remove(); this.fillSkins();
+    const ov=document.createElement('div'); ov.id='pumpkinOv';
+    for(let i=0;i<12;i++){ const b=document.createElement('span'); b.className='pk-bat'; b.textContent='🦇'; b.style.top=(6+Math.random()*70)+'vh'; b.style.animationDuration=(5+Math.random()*5)+'s'; b.style.animationDelay=(Math.random()*4)+'s'; b.style.fontSize=(18+Math.random()*20)+'px'; ov.appendChild(b); }
+    for(let i=0;i<10;i++){ const p=document.createElement('span'); p.className='pk-float'; p.textContent=i%3===0?'👻':'🎃'; p.style.left=(Math.random()*92)+'vw'; p.style.fontSize=(22+Math.random()*26)+'px'; p.style.animationDuration=(6+Math.random()*6)+'s'; p.style.animationDelay=(Math.random()*5)+'s'; ov.appendChild(p); }
+    const card=document.createElement('div'); card.className='pk-card'; card.innerHTML='<div class="pk-big">🎃</div><div class="pk-t">Boo! You found it.</div><div class="pk-s">'+(first?'This is Blitz’s secret Halloween gift. The <b>Midnight Pumpkin</b> look is yours now.':'The Midnight Pumpkin look is ready for you.')+'<br>Turn it on in Settings → Appearance → Colour style.</div><div class="pk-x">tap anywhere to close</div>'; ov.appendChild(card);
+    const close=()=>{ ov.remove(); }; ov.addEventListener('click',close); setTimeout(close,14000); document.body.appendChild(ov);
+    try{ Extras.haptic([30,50,30,50,80]); }catch(e){}
+  }
+};
+
+const Daily = {
+  TIPS:['Say “play my gym playlist” and Blitz plays it. Make playlists in 🎬 My Media.','Say “focus for 25 minutes” to block YouTube, Instagram and other distractions inside Blitz.','Say “wind down” at night: dark mode, a calm playlist and a sleep timer.','In the Search tab, switch to 🌐 Browser to keep pages inside Blitz.','Tap 🔖 in the Blitz browser to save a page for later.','Add your favourite sites to Quick links, then say “go to <name>”.','Long-press nothing, just tap the mic and talk normally. Blitz listens better now.','Say “study mode” for a focus timer and a study playlist.','Settings → Appearance has colour styles and a living sky background.','Say “make a playlist called Chill”, then add songs from My Media.'],
+  hello(){ const h=new Date().getHours(); return h<5?'Still up? 🌙':h<12?'Good morning ☀️':h<17?'Good afternoon 🌤':h<21?'Good evening 🌆':'Good night 🌙'; },
+  init(){ this.render(); setInterval(()=>this.render(),60000); setTimeout(()=>this.render(),1500); },
+  last(){ try{ const M=Player.meta(); let best=null; Object.keys(M).forEach(f=>{ const m=M[f]; if(m&&m.pos>5&&m.dur&&m.pos<m.dur-8&&(!best||(m.t||0)>(M[best].t||0))) best=f; }); return best; }catch(e){ return null; } },
+  render(){
+    const box=document.getElementById('chatEmpty'); if(!box) return; let c=document.getElementById('dailyCard');
+    if(!c){ c=document.createElement('div'); c.id='dailyCard'; const sg=box.querySelector('.suggestions'); box.insertBefore(c,sg); }
+    c.innerHTML=''; const hi=document.createElement('div'); hi.className='dc-hi'; hi.textContent=this.hello(); c.appendChild(hi);
+    const row=document.createElement('div'); row.className='dc-row'; const chip=(txt,fn)=>{ const b=document.createElement('button'); b.type='button'; b.className='dc-chip'; b.textContent=txt; b.onclick=fn; row.appendChild(b); };
+    const lf=this.last(); if(lf){ const nm=lf.split('|')[0].replace(/\.[a-z0-9]{2,4}$/i,''); chip('▶ Continue: '+nm.slice(0,28),async()=>{ Actions.tabTo('player'); await Player.loadKept(); const it=Player.q.find(x=>x.fid===lf); if(it&&(it.file||it.kept)){ Player.pl=null; Player.open(it); } else UI.toast('That file is not saved here. Add it again in My Media.'); }); }
+    Player.pls().slice(0,3).forEach(pl=>chip('▶ '+pl.name,async()=>{ const r=await Actions.route('play '+pl.name+' playlist'); if(r) UI.toast(r.text); }));
+    chip(Focus.on()?'🎯 '+Focus.fmt()+' left':'🎯 Focus 25',()=>{ if(Focus.on()) UI.toast('Focus mode is on'); else { Focus.start(25); this.render(); } });
+    const lc=Later.list().length; if(lc) chip('🔖 '+lc+' to read later',async()=>{ if(!SB.B()){ UI.toast('The Blitz browser is in the Android app.'); return; } SB.setMode('browser'); UI.switchTab('search'); SB.apply(); await SB.home(); });
+    c.appendChild(row);
+    const tip=document.createElement('div'); tip.className='dc-tip'; const doy=Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0))/864e5); tip.textContent='💡 '+this.TIPS[doy%this.TIPS.length]; c.appendChild(tip);
+  }
+};
+
 const PATCH_NOTES = [
+  {ver:'4.4', label:'Tabs', items:[
+    'The Blitz browser has tabs: tap ＋ for a new tab, switch between them without reloading, close with ✕ (up to 8). Long-press a link to open it in a new tab. Needs the updated app (new build).',
+    '⋯ menu in the browser: ✨ Ask about this page, 📝 short summary, 📖 clean reading view, ★ bookmarks, 🔖 read later, computer version of sites, copy link.',
+    '🛡 Ad and tracker blocking (on by default, switch in the ⋯ menu) and a pop-up blocker. It cannot remove YouTube’s own ads.',
+    '🎯 Focus mode now also blocks distracting sites you reach by tapping links inside a page.',
+    'Say “new tab”, “close tab”, “bookmark this page” or “summarize this page”.'
+  ]},
+  {ver:'4.3', label:'Glow', items:[
+    'Living background: the sky colours behind Blitz follow the time of day (turn off in Settings → Appearance).',
+    'Colour styles: Ocean, Sakura and Neon night, plus smoother screen changes, press effects and sparkles when something succeeds.',
+    'Say “gym mode”, “study mode” or “wind down” and Blitz sets everything up: playlist, focus timer, dark mode, sleep timer.',
+    '🎯 Focus mode: “focus for 25 minutes” blocks YouTube, Instagram, Reddit and other distractions inside Blitz, with a countdown at the top.',
+    '😴 Sleep timer: “sleep timer 30” fades your music out and stops it.',
+    '🔖 Read later in the Blitz browser: tap 🔖 on any page, find your list on the browser start page.',
+    'A Daily card on the chat start screen: greeting, continue where you stopped, your playlists, focus, and a tip.',
+    'And there is a secret. 🎃'
+  ]},
   {ver:'4.2', label:'Switch', items:[
     'Search tab now has a 🔎 Search / 🌐 Browser switch. In Browser mode, everything you search or type opens in a Blitz browser right inside the tab, with the same search bar and look. Needs the updated app (new build).',
     'New “Apps” switch: ON opens YouTube, Maps, Instagram and other links in their own phone app (falls back to Blitz if the app is not installed), OFF keeps everything inside Blitz. It works for quick links and chat links too.',
