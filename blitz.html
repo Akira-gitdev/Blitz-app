@@ -3009,7 +3009,7 @@ html[data-theme="dark"] .sbm-in{background:rgba(255,255,255,.08);}
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '4.11', label: 'Aki Learns' };
+const BLITZ_VERSION = { number: '4.12', label: 'Epic Boot' };
 
 const Utils = {
   uid(prefix){
@@ -3116,7 +3116,7 @@ float vnoise(vec3 x){
   return mix(mix(mix(h31(i),h31(i+vec3(1,0,0)),f.x), mix(h31(i+vec3(0,1,0)),h31(i+vec3(1,1,0)),f.x), f.y),
              mix(mix(h31(i+vec3(0,0,1)),h31(i+vec3(1,0,1)),f.x), mix(h31(i+vec3(0,1,1)),h31(i+vec3(1,1,1)),f.x), f.y), f.z);
 }
-float fbm(vec3 p){ float s=0., a=.5; for(int i=0;i<4;i++){ s+=a*vnoise(p); p*=2.03; a*=.5; } return s; }
+float fbm(vec3 p){ float s=0., a=.55; for(int i=0;i<3;i++){ s+=a*vnoise(p); p*=2.03; a*=.5; } return s; }
 vec3 ramp(float t){ t = clamp(t,0.,2.); return clamp(vec3(1.25*t, pow(t,1.7), pow(t,3.2)), 0., 1.6); }
 vec3 stars(vec3 d){
   // Denser starfield for more light to visibly bend around the hole,
@@ -3160,14 +3160,14 @@ void main(){
   float cn = clamp(abs(dot(bd, normalize(ro)))/.47, 0., 1.);
   float boost = 1. + 3.*pow(cn, 6.);
   vec3 col = vec3(0.); float tr = 1.; bool hole = false;
-  for(int i=0;i<300;i++){
+  for(int i=0;i<170;i++){
     float r2 = dot(p,p); float r = sqrt(r2);
     if(r < horizonR){ hole = true; break; }
     if(r > 60. && dot(p,v) > 0.) break;
     float ay = abs(p.y);
     float rho2 = dot(p.xz, p.xz);
     bool fx = jetAmp > 0. || grbBeam > 0. || ringAmp > 0.;
-    float dt = clamp(.045*(r-.7), .02, fx ? .4 : 1.2);
+    float dt = clamp(.06*(r-.7), .026, fx ? .4 : 1.6);
     if(grbBeam > 0. && rho2 < 9.) dt = min(dt, .08);
     if(grbBeam > 0. && ay < grbLen && rho2 < 4.){
       float wd = .1 + .01*ay;
@@ -3279,7 +3279,8 @@ void main(){
   _resize(){
     // Low quality on purpose: the ray-marched shader is far more expensive
     // per-pixel than anything else on screen.
-    const q = (window.innerWidth < 700 ? 0.42 : 0.6) * Math.min(window.devicePixelRatio||1, 1);
+    const base = (window.innerWidth < 700 ? 0.37 : 0.58) * Math.min(window.devicePixelRatio||1, 1);
+    this._qbase = base; if(!this._q) this._q = base; const q = this._q;
     this.canvas.width = Math.max(2, Math.floor(window.innerWidth*q));
     this.canvas.height = Math.max(2, Math.floor(window.innerHeight*q));
     this.gl.viewport(0,0,this.canvas.width,this.canvas.height);
@@ -3304,7 +3305,17 @@ void main(){
     const centre = Math.abs(x-w/2) < w*0.22 && Math.abs(y-h/2) < h*0.22;
     if(!centre){ this._taps = []; return; }
     this._taps = this._taps.filter(t=>now-t<1500).concat([now]);
-    if(this._taps.length>=3){ this._taps = []; this._strokes = []; this._setState('dying', performance.now()); }
+    if(this._taps.length>=3){ this._taps = []; this._strokes = []; this._setState('finale', performance.now()); this._startFinale(); }
+  },
+  /* quality that adapts to the phone: if frames take too long, draw the hole at a lower resolution (it is upscaled, so it only gets slightly softer) */
+  _adapt(ms, now){
+    this._ft = (this._ft||17)*.92 + ms*.08; this._fn = (this._fn||0)+1;
+    if(this._fn>30 && this._ft>26 && now-(this._la||0)>900 && this._q > this._qbase*.6){ this._q *= .86; this._la = now; this._resize(); }
+  },
+  _startFinale(){
+    const self = this; this._hideTrail();
+    try{ if(this.onStart) this.onStart(); }catch(e){}
+    BootFinale.run({reduced:Boot.reduced, reveal:()=>{ try{ if(self.onReveal) self.onReveal(); }catch(e){} }}).then(()=>{ self._setState('blank', performance.now()); });
   },
   _clearTrail(){
     const c = this._trail; if(!c) return;
@@ -3361,6 +3372,7 @@ void main(){
     this.yaw = ((originX!=null ? originX/window.innerWidth : 0.5) - 0.5) * 1.4 + 0.6;
     this.pitch = (originY!=null ? ((originY/window.innerHeight)-0.5)*0.5 : 0.11) + 0.032; // resting tilt: leaned forward a little
     this.dist = 24;
+    this._q = 0; this._ft = 0; this._fn = 0; this._la = 0; this._resize();
     this.canvas.classList.add('show');
     this.running = true;
     this._last = performance.now(); this._t = 0;
@@ -3375,7 +3387,7 @@ void main(){
     return new Promise(resolve=>{
       const loop = now => {
         if(!this.running) return;
-        const dt = Math.min((now-this._last)/1000, 0.1); this._last = now;
+        const rawMs = now-this._last; const dt = Math.min(rawMs/1000, 0.1); this._last = now; this._adapt(rawMs, now);
         this._t += dt;
         const el = now - this.stateAt;
         let birth=-1, rad=0, vanish=0, grb=0;
@@ -3386,6 +3398,8 @@ void main(){
           birth = 1;
           // No auto-timeout — this only ends when the destroy code lands
           // (see _registerTap), so it can sit here indefinitely.
+        } else if(this.state==='finale'){
+          birth = 1; // the star finale runs on top; the hole just keeps turning (no jets = cheaper)
         } else if(this.state==='dying'){
           birth = 1;
           rad = Math.min(this.RADIATE, el)/1000;
@@ -3437,6 +3451,91 @@ void main(){
     if(this.canvas) this.canvas.classList.remove('show');
     this._hideTrail();
   },
+};
+
+/* ---------------------------------------------------------------------- *
+ * BootFinale (v4.12) — what happens after the triple tap on the black hole:
+ * comet-stars rush in from every side and spiral around the hole, faster and
+ * faster for ~1s, crash together in the middle, burst outward, then every star
+ * sketches one outline of the real Blitz screen (read live from the page).
+ * A white flash, and the sketch becomes the real UI. Whole build-up ~1.5s.
+ * ---------------------------------------------------------------------- */
+const BootFinale = {
+  T:{spiral:1100, collide:150, burst:260, curve:330, trace:900},
+  PAL:['255,214,102','255,255,255','255,255,255','255,255,255','168,140,255','96,166,255','255,118,128'],
+  SKIP:'#bootSequence,#bootCanvas,#bootHoleCanvas,#bootBurstCanvas,#bootFlash,.boot-door,#bootFinaleSketch,#bootFinaleStars,#bootTrail',
+  rr(x,y,w,h,r){
+    const pts=[]; r=Math.max(0,Math.min(r,w/2,h/2)); const k=5;
+    const arc=(cx,cy,a0,a1)=>{ for(let i=0;i<=k;i++){ const a=a0+(a1-a0)*i/k; pts.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]); } };
+    if(r<1.5){ pts.push([x,y],[x+w,y],[x+w,y+h],[x,y+h]); } else { arc(x+w-r,y+r,-Math.PI/2,0); arc(x+w-r,y+h-r,0,Math.PI/2); arc(x+r,y+h-r,Math.PI/2,Math.PI); arc(x+r,y+r,Math.PI,Math.PI*1.5); }
+    pts.push(pts[0]); return this.mk(pts,true);
+  },
+  mk(pts,closed){ const cum=[0]; for(let i=1;i<pts.length;i++) cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])); return {pts,cum,len:Math.max(1,cum[cum.length-1]),closed:!!closed}; },
+  at(p,s){ s=Math.max(0,Math.min(p.len,s)); let lo=0,hi=p.cum.length-1; while(hi-lo>1){ const m=(lo+hi)>>1; if(p.cum[m]<=s) lo=m; else hi=m; } const a=p.pts[lo], b=p.pts[hi], seg=p.cum[hi]-p.cum[lo]||1, u=(s-p.cum[lo])/seg; return [a[0]+(b[0]-a[0])*u, a[1]+(b[1]-a[1])*u]; },
+  collect(W,H){
+    const out=[], rects=[]; let els=[];
+    try{ els=Array.from(document.body.querySelectorAll('button,input,textarea,select,a.btn,nav,header,h1,h2,h3,img,svg,.glass,.card,[class*="card"],[class*="panel"],[class*="chip"],[class*="tab"],[class*="bubble"],[class*="msg"],[class*="pill"],[class*="avatar"],[class*="toolbar"],[class*="bar"]')).slice(0,1500); }catch(e){}
+    const cand=[];
+    for(const el of els){
+      try{ if(el.closest(this.SKIP)) continue; if(el.checkVisibility&&!el.checkVisibility({opacityProperty:true,visibilityProperty:true})) continue;
+        const r=el.getBoundingClientRect(); if(r.width<16||r.height<14) continue;
+        const x0=Math.max(2,r.left), y0=Math.max(2,r.top), x1=Math.min(W-2,r.right), y1=Math.min(H-2,r.bottom); const w=x1-x0, h=y1-y0; if(w<16||h<14||w*h<350) continue; if(w>W*.97&&h>H*.8) continue;
+        const cs=getComputedStyle(el); const rad=parseFloat(cs.borderTopLeftRadius)||0; cand.push({x:x0,y:y0,w,h,r:rad,a:w*h,tag:el.tagName}); }catch(e){}
+    }
+    cand.sort((a,b)=>b.a-a.a);
+    for(const c of cand){ if(rects.length>=64) break; if(rects.some(q=>Math.abs(q.x-c.x)<4&&Math.abs(q.y-c.y)<4&&Math.abs(q.w-c.w)<6&&Math.abs(q.h-c.h)<6)) continue; rects.push(c); out.push(this.rr(c.x,c.y,c.w,c.h,c.r)); }
+    let tx=[]; try{ tx=Array.from(document.body.querySelectorAll('h1,h2,h3,h4,p,label,small,.title,[class*="title"],[class*="sub"]')).slice(0,400); }catch(e){}
+    let nl=0; for(const el of tx){ if(nl>=14) break; try{ if(el.closest(this.SKIP)) continue; if(el.checkVisibility&&!el.checkVisibility({opacityProperty:true,visibilityProperty:true})) continue; const r=el.getBoundingClientRect(); if(r.width<50||r.height<8||r.height>70||r.bottom<0||r.top>H||r.right<0||r.left>W) continue; const y=Math.min(H-3,Math.max(3,r.top+r.height*.78)), x0=Math.max(4,r.left), x1=Math.min(W-4,r.left+Math.min(r.width,260)); if(x1-x0<40) continue; out.push(this.mk([[x0,y],[x1,y]],false)); nl++; }catch(e){} }
+    if(out.length<10){ const m=14, hh=Math.min(64,H*.09); out.push(this.rr(m,m+10,W-2*m,hh,16)); out.push(this.rr(m,H-hh-m-6,W-2*m,hh,hh/2)); for(let i=0;i<5;i++){ const y=m+hh+34+i*((H-3*hh-90)/5); out.push(this.rr(m+(i%2?24:0),y,W-2*m-(i%2?24:0),Math.max(30,(H-3*hh-130)/6),14)); } }
+    return out;
+  },
+  run(o){
+    o=o||{};
+    return new Promise(resolve=>{
+      const flash=document.getElementById('bootFlash'), hole=document.getElementById('bootHoleCanvas');
+      const finish=()=>{ try{ sk.remove(); st.remove(); }catch(e){} if(flash){ flash.style.transition=''; flash.classList.remove('on','off'); flash.style.opacity=''; } if(hole){ hole.style.opacity=''; hole.style.transition=''; } resolve(); };
+      const W=innerWidth, H=innerHeight, dpr=Math.min(window.devicePixelRatio||1,1.5);
+      const mkc=(id,z)=>{ const c=document.createElement('canvas'); c.id=id; c.setAttribute('aria-hidden','true'); c.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:'+z+';pointer-events:none;'; c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); document.body.appendChild(c); const x=c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); return [c,x]; };
+      const [sk,skx]=mkc('bootFinaleSketch',164), [st,stx]=mkc('bootFinaleStars',165);
+      const doFlash=async()=>{ if(flash){ flash.style.transition='opacity 80ms ease-out'; flash.classList.remove('off'); flash.classList.add('on'); } await new Promise(r=>setTimeout(r,90)); try{ o.reveal&&o.reveal(); }catch(e){} if(hole){ hole.style.opacity='0'; } await new Promise(r=>setTimeout(r,50)); if(flash){ flash.classList.remove('on'); flash.style.transition='opacity 480ms ease-in'; flash.style.opacity='0'; } sk.style.transition='opacity 520ms ease-in'; st.style.transition='opacity 300ms ease-in'; sk.style.opacity='0'; st.style.opacity='0'; setTimeout(finish,560); };
+      if(o.reduced){ doFlash(); return; }
+      let paths=[]; try{ paths=this.collect(W,H); }catch(e){ paths=[]; }
+      const T=this.T, t1=T.spiral, t2=t1+T.collide, t3=t2+T.burst, t4=t3+T.curve, t5=t4+T.trace;
+      const N=Math.max(36,Math.min(84,paths.length)); const cx=W/2, cy=H/2, mn=Math.min(W,H), mx=Math.max(W,H); const R=Math.random; const stars=[];
+      const domDir=R()<.5?1:-1;
+      for(let i=0;i<N;i++){ const path=paths[i%paths.length]; stars.push({a0:R()*Math.PI*2,R0:mx*(.58+R()*.32),dir:R()<.85?domDir:-domDir,turns:2.2+R()*1.8,delay:R()*.22,col:this.PAL[(R()*this.PAL.length)|0],w:1.2+R()*1.5,ba:R()*Math.PI*2,bR:mn*(.2+R()*.42),path,off:i>=paths.length?R():0,sgn:R()<.5?1:-1,x:cx,y:cy,px:null,py:null,bx:0,by:0,sx:0,sy:0,tx:null,ty:null}); }
+      const ease=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2; const sm=u=>u*u*(3-2*u);
+      const seg=(ctx,x0,y0,x1,y1,w,col,al)=>{ ctx.strokeStyle='rgba('+col+','+al+')'; ctx.lineWidth=w; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); };
+      const head=(s,al)=>{ stx.fillStyle='rgba('+s.col+','+(.16*al)+')'; stx.beginPath(); stx.arc(s.x,s.y,s.w*3.2,0,6.283); stx.fill(); stx.fillStyle='rgba(255,255,255,'+al+')'; stx.beginPath(); stx.arc(s.x,s.y,s.w*.9,0,6.283); stx.fill(); };
+      const spiralPos=(s,p)=>{ const e=1-Math.pow(p,2.15), r=3+(s.R0-3)*e; const th=s.a0+s.dir*s.turns*6.283*Math.pow(p,2.6); return [cx+Math.cos(th)*r, cy+Math.sin(th)*r*.82]; };
+      const t0=performance.now(); let flashed=false, burstSet=false, curveSet=false, prevT=0;
+      if(hole){ hole.style.transition='none'; }
+      const frame=now=>{
+        if(!document.body.contains(st)) return; const t=now-t0;
+        stx.globalCompositeOperation='destination-out'; stx.fillStyle='rgba(0,0,0,'+(t<t2?.22:.34)+')'; stx.fillRect(0,0,W,H); stx.globalCompositeOperation='lighter';
+        if(t<t1){
+          const tp=t/t1; if(hole) hole.style.opacity=String(Math.max(0,1-Math.pow(Math.max(0,(tp-.35)/.65),1.6)));
+          for(const s of stars){ const dur=1-.22, p=Math.max(0,Math.min(1,(tp-s.delay)/dur)); if(p<=0) continue; const pp=Math.max(0,prevT/t1-s.delay)/dur; const steps=3; let ppx=s.px,ppy=s.py; for(let k=1;k<=steps;k++){ const pk=Math.max(0,Math.min(1,pp+(p-pp)*k/steps)); const [x,y]=spiralPos(s,pk); if(ppx!==null) seg(stx,ppx,ppy,x,y,s.w,s.col,.85); ppx=x; ppy=y; s.x=x; s.y=y; } s.px=ppx; s.py=ppy; head(s,.9); }
+        } else if(t<t2){
+          if(hole) hole.style.opacity='0'; const q=(t-t1)/T.collide; const rad=10+q*q*90; const g=stx.createRadialGradient(cx,cy,0,cx,cy,rad); g.addColorStop(0,'rgba(255,255,255,'+(.55+.4*q)+')'); g.addColorStop(.4,'rgba(255,214,102,'+(.35*q+.1)+')'); g.addColorStop(1,'rgba(255,214,102,0)'); stx.fillStyle=g; stx.fillRect(cx-rad,cy-rad,rad*2,rad*2);
+          for(const s of stars){ s.x=cx; s.y=cy; s.px=cx; s.py=cy; }
+        } else if(t<t3){
+          if(!burstSet){ burstSet=true; for(const s of stars){ s.px=cx; s.py=cy; } }
+          const q=(t-t2)/T.burst, d=1-Math.pow(1-q,3); const ringR=d*mx*.62; stx.strokeStyle='rgba(255,226,150,'+(.32*(1-q))+')'; stx.lineWidth=2*(1-q)+.5; stx.beginPath(); stx.arc(cx,cy,ringR,0,6.283); stx.stroke();
+          for(const s of stars){ const x=cx+Math.cos(s.ba)*s.bR*d, y=cy+Math.sin(s.ba)*s.bR*d; seg(stx,s.px,s.py,x,y,s.w*1.1,s.col,.9); s.px=x; s.py=y; s.x=x; s.y=y; head(s,1); }
+        } else if(t<t4){
+          if(!curveSet){ curveSet=true; for(const s of stars){ s.bx=s.x; s.by=s.y; const p=s.path, a=this.at(p,s.off*p.len); s.sx=a[0]; s.sy=a[1]; s.tx=a[0]; s.ty=a[1]; } }
+          const u=sm((t-t3)/T.curve); for(const s of stars){ const dx=s.sx-s.bx, dy=s.sy-s.by, dd=Math.hypot(dx,dy)||1; const mx_=(s.bx+s.sx)/2-dy/dd*dd*.35*s.sgn, my_=(s.by+s.sy)/2+dx/dd*dd*.35*s.sgn; const x=(1-u)*(1-u)*s.bx+2*(1-u)*u*mx_+u*u*s.sx, y=(1-u)*(1-u)*s.by+2*(1-u)*u*my_+u*u*s.sy; seg(stx,s.px,s.py,x,y,s.w,s.col,.85); s.px=x; s.py=y; s.x=x; s.y=y; head(s,1); }
+        } else if(t<t5){
+          const u=ease((t-t4)/T.trace); for(const s of stars){ const p=s.path; const pos=p.closed?((s.off*p.len+u*p.len)%p.len):u*p.len; const a=this.at(p,pos); const x=a[0], y=a[1]; if(s.tx!==null&&u>0){ seg(skx,s.tx,s.ty,x,y,3.6,s.col,.10); seg(skx,s.tx,s.ty,x,y,1.3,'255,236,200',.9); } seg(stx,s.px,s.py,x,y,s.w,s.col,.7); s.px=x; s.py=y; s.tx=x; s.ty=y; s.x=x; s.y=y; head(s,1); }
+        }
+        prevT=t;
+        if(t>=t5){ if(!flashed){ flashed=true; doFlash(); } return; }
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    });
+  }
 };
 
 /* ---------------------------------------------------------------------- *
@@ -4435,6 +4534,7 @@ const Boot = {
     const tagline = document.getElementById('bootTagline');
     const bubble = document.getElementById('onboardBubble');
     const d = ms => this.reduced ? Utils.sleep(Math.min(ms,90)) : Utils.sleep(ms);
+    let obOpen = false;
 
     // Settings -> "Loading animation" off: skip the whole intro (the Reboot
     // button still forces it, since that's an explicit "play it again").
@@ -4475,6 +4575,32 @@ const Boot = {
     await d(1000);
     flashStage.classList.remove('show');
     await d(180);
+
+    // Stage 3 — Blitz brand morph: step through the 8 hand-built frames
+    // (lightning "B" -> burst -> jagged reassembly -> "BLI" -> full
+    // "BLITZ"), holding on the final frame (already the finished wordmark
+    // art) once done.
+    morphStage.classList.add('show');
+    morphWrap.classList.add('show');
+    morphImg.src = Boot.MORPH_FRAMES[0];
+    this.thud(0.0);
+    const frames = Boot.MORPH_FRAMES;
+    const stepMs = this.reduced ? 45 : 95;
+    for(let i=1;i<frames.length;i++){
+      await d(stepMs);
+      morphImg.src = frames[i];
+      if(i===2) this.thud(0.02); // mid-burst beat
+    }
+    tagline.classList.add('show');
+    this.chime(0.02);
+    await d(1600);
+
+    // Exit — the whole morphed mark fades together; nothing to peel apart.
+    morphWrap.classList.add('exit'); morphWrap.classList.remove('show');
+    await d(500);
+    morphStage.classList.remove('show');
+    await d(200);
+
 
     // Stage 2 — brand collision: F enters (one continuous motion sliding
     // left to make room), Akira collides into it — and that collision is
@@ -4553,13 +4679,24 @@ const Boot = {
     // never truly hang for someone who doesn't know the code — it just
     // hides the hole quietly, no forced death animation.
     wordmark.classList.add('rise');
+    BootHole.onStart = ()=>{
+      wordmark.classList.remove('rise'); wordmark.classList.add('exit');
+      if(subline){ subline.classList.remove('rise'); subline.classList.add('exit'); }
+      this.setMode(openOnboarding ? 'sphere' : 'sparkle');
+      if(openOnboarding){ const input = document.getElementById('onboardProfileInput'); if(input) input.value = Config.state.userProfile || ''; UI.openSheet('onboardOverlay'); obOpen = true; }
+    };
+    BootHole.onReveal = ()=>{
+      seq.classList.add('hidden'); brandStage.classList.remove('show');
+      if(!openOnboarding){ canvasEl.style.transition='none'; canvasEl.classList.remove('show'); }
+    };
     const holeP = this.reduced ? Promise.resolve() : BootHole.trigger(originX, originY);
     await d(350);
     if(subline) subline.classList.add('rise');
     let holeDone = false;
     holeP.then(()=>{ holeDone = true; });
     await Promise.race([holeP, d(this.reduced ? 500 : 15000)]);
-    if(!holeDone) BootHole.forceStop();
+    if(!holeDone && BootHole.state==='finale'){ await holeP; } else if(!holeDone) BootHole.forceStop();
+    BootHole.onStart = null; BootHole.onReveal = null;
     wordmark.classList.remove('rise'); wordmark.classList.add('exit');
     if(subline){ subline.classList.remove('rise'); subline.classList.add('exit'); }
     this.bloop(0.25);
@@ -4567,39 +4704,17 @@ const Boot = {
     brandStage.classList.remove('show');
     await d(200);
 
-    // Stage 3 — Blitz brand morph: step through the 8 hand-built frames
-    // (lightning "B" -> burst -> jagged reassembly -> "BLI" -> full
-    // "BLITZ"), holding on the final frame (already the finished wordmark
-    // art) once done.
-    morphStage.classList.add('show');
-    morphWrap.classList.add('show');
-    morphImg.src = Boot.MORPH_FRAMES[0];
-    this.thud(0.0);
-    const frames = Boot.MORPH_FRAMES;
-    const stepMs = this.reduced ? 45 : 95;
-    for(let i=1;i<frames.length;i++){
-      await d(stepMs);
-      morphImg.src = frames[i];
-      if(i===2) this.thud(0.02); // mid-burst beat
-    }
-    tagline.classList.add('show');
-    this.chime(0.02);
-    await d(1600);
-
-    // Exit — the whole morphed mark fades together; nothing to peel apart.
-    morphWrap.classList.add('exit'); morphWrap.classList.remove('show');
-    await d(500);
-    morphStage.classList.remove('show');
-    await d(200);
-
     seq.classList.add('hidden');
+    canvasEl.style.transition = '';
 
     if(openOnboarding){
-      const input = document.getElementById('onboardProfileInput');
-      if(input) input.value = Config.state.userProfile || '';
-      this.setMode('sphere');
-      UI.openSheet('onboardOverlay');
-      await d(500);
+      if(!obOpen){
+        const input = document.getElementById('onboardProfileInput');
+        if(input) input.value = Config.state.userProfile || '';
+        this.setMode('sphere');
+        UI.openSheet('onboardOverlay');
+        await d(500);
+      } else { await d(200); }
       if(bubble) bubble.classList.add('show');
     } else {
       this.stopIntro();
@@ -15399,6 +15514,11 @@ Object.assign(Aki,{
 });
 
 const PATCH_NOTES = [
+  {ver:'4.12', label:'Epic Boot', items:[
+    '🎬 New intro order: lightning, then the BLITZ morph, then the Flambounds collision, then the black hole.',
+    '⭐ Triple-tap the black hole: comet-stars rush in from every side, spiral faster and faster, crash in the middle, burst out, then trace the whole Blitz screen in about 1.5 seconds. A white flash and the sketch becomes the real screen. (No more radiation rays.)',
+    '⚡ Black hole is lighter on the phone: fewer calculation steps, and it lowers its own resolution if the phone struggles.'
+  ]},
   {ver:'4.11', label:'Aki Learns', items:[
     '🔎 Research: Aki looks a topic up on wikis (Wikipedia and Mobile Legends Wiki, add any wiki), shows what it found, and saves only what you choose, with the source, page date and an optional version label. Never marked verified.',
     '🌱 Newborn and Pro: same notes and memory, different behaviour. Newborn is short, asks what unknown things are, and learns from you. Pro is fuller and deeper. Aki shows readiness checks; you switch by hand.',
