@@ -2744,7 +2744,14 @@ html[data-theme="dark"] .sbm-in{background:rgba(255,255,255,.08);}
             <label style="margin:0;" for="cfgBootStyle">Intro style</label>
             <div class="hint" style="margin-top:2px;">Surprise me picks one each time. Black hole: lightning, logos, black hole, then the star finale. Lightning storm: a thunderstorm that powers on your screen.</div>
           </div>
-          <select id="cfgBootStyle"><option value="random">Surprise me</option><option value="hole">Black hole</option><option value="storm">Lightning storm</option></select>
+          <select id="cfgBootStyle"><option value="random">Surprise me</option><option value="hole">Black hole</option><option value="storm">Chidori storm</option><option value="warp">Warp jump</option><option value="nova">Supernova</option><option value="glitch">Glitch</option><option value="matrix">Matrix rain</option><option value="neon">Neon sign</option></select>
+        </div>
+        <div class="row-between field">
+          <div>
+            <label style="margin:0;" for="cfgRebootStyle">Reboot style</label>
+            <div class="hint" style="margin-top:2px;">What plays when you press the Reboot button. Surprise me uses its own set (Glitch, Matrix, Neon), different from the normal start-up set (Black hole, Chidori, Warp, Supernova).</div>
+          </div>
+          <select id="cfgRebootStyle"><option value="random">Surprise me</option><option value="hole">Black hole</option><option value="storm">Chidori storm</option><option value="warp">Warp jump</option><option value="nova">Supernova</option><option value="glitch">Glitch</option><option value="matrix">Matrix rain</option><option value="neon">Neon sign</option></select>
         </div>
         <div class="row-between field">
           <div>
@@ -3016,7 +3023,7 @@ html[data-theme="dark"] .sbm-in{background:rgba(255,255,255,.08);}
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '4.13', label: 'Storm Boot' };
+const BLITZ_VERSION = { number: '4.14', label: 'Boot Lab' };
 
 const Utils = {
   uid(prefix){
@@ -3617,6 +3624,103 @@ const BootFinale = {
 };
 
 /* ---------------------------------------------------------------------- *
+ * BootFX (v4.14) — more crazy boots, all on one engine:
+ *   opener (custom canvas show) -> the real UI outlines get lit in an order
+ *   -> hold -> fade into the real screen. Tap to skip.
+ * kinds: warp, nova (launch pool) · glitch, matrix, neon (reboot pool)
+ * ---------------------------------------------------------------------- */
+const BootFX = {
+  K:{
+    warp:{open:1500, bg:'4,6,22', order:'y', col:'150,200,255'},
+    nova:{open:1400, bg:'14,4,2', order:'r', col:'255,200,120'},
+    glitch:{open:1200, bg:'2,2,8', order:'rnd', col:'0,255,240'},
+    matrix:{open:1500, bg:'0,10,3', order:'y', col:'90,255,140'},
+    neon:{open:1000, bg:'8,2,14', order:'sec', col:'255,70,200'}
+  },
+  run(kind,o){
+    o=o||{}; const K=this.K[kind]||this.K.warp;
+    return new Promise(resolve=>{
+      const W=innerWidth, H=innerHeight, dpr=Math.min(window.devicePixelRatio||1,1.5), cx=W/2, cy=H/2, mn=Math.min(W,H), R=Math.random;
+      const c=document.createElement('canvas'); c.id='bootStormCanvas'; c.setAttribute('aria-hidden','true'); c.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:163;touch-action:none;'; c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); document.body.appendChild(c);
+      const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+      const sfx=k=>{ try{ o.sfx&&o.sfx(k); }catch(_){} };
+      const OP=K.open, CI=1700, HO=450, FA=700, cc=OP, d=cc+CI, e=d+HO;
+      let done=false, revealed=false, paths=[], scanned=false, rescan=false, snapped=false, skipAt=-1, boomed=false;
+      const finish=()=>{ if(done) return; done=true; try{ c.remove(); }catch(_){} resolve(); };
+      const reveal=()=>{ if(revealed) return; revealed=true; try{ o.reveal&&o.reveal(); }catch(_){} c.style.transition='opacity '+FA+'ms ease-in-out'; c.style.opacity='0'; setTimeout(finish,FA+60); };
+      if(o.reduced){ reveal(); return; }
+      BootFinale.scanStart(W,H);
+      c.addEventListener('pointerdown',()=>{ if(skipAt<0) skipAt=performance.now(); });
+      /* state for openers */
+      const stars=[]; if(kind==='warp') for(let i=0;i<260;i++) stars.push({a:R()*6.283,r:R()*mn*.3,v:.4+R()*1.2,c:R()});
+      const parts=[]; const cols=[]; const CH='01ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ<>/+*'; const cw=16; if(kind==='matrix'){ for(let i=0;i<Math.ceil(W/cw);i++) cols.push({y:-R()*H,v:.35+R()*.7,l:8+((R()*14)|0)}); }
+      const rings=[]; let flash=-999;
+      const order=(p)=>{ const bb=BootFinale.bbox(p), mx=(bb[0]+bb[2])/2, my=(bb[1]+bb[3])/2;
+        if(K.order==='y') return my/H; if(K.order==='r') return Math.hypot(mx-cx,my-cy)/(Math.hypot(cx,cy)+1);
+        if(K.order==='sec') return Math.min(1,Math.floor(my/(H/6))/6+R()*.12); return R(); };
+      const t0=performance.now();
+      const drawPaths=(t)=>{ ctx.lineJoin='round'; ctx.lineCap='round';
+        for(const p of paths){ const age=(t-cc)-p._o*CI*.8; if(age<0) continue; const fresh=age<600;
+          let fl=1; if(kind==='neon'&&age<450) fl=(Math.sin(age*.09+p._o*40)>-.2)?1:.12; else if(fresh) fl=.55+.45*R();
+          let js=0; if(kind==='glitch'&&age<500) js=7*(1-age/500); else if(fresh) js=2*(1-age/600);
+          const dx=js?(R()-.5)*js:0, dy=js?(R()-.5)*js*.4:0;
+          const pass=(ox,oy,col,w,al)=>{ ctx.beginPath(); p.pts.forEach((q,i)=>{ const x=q[0]+ox+dx, y=q[1]+oy+dy; i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.strokeStyle='rgba('+col+','+al+')'; ctx.lineWidth=w; ctx.stroke(); };
+          if(kind==='glitch'&&age<500){ pass(-3,0,'255,0,90',1.4,.8*fl); pass(3,0,'0,255,240',1.4,.8*fl); }
+          const gc=kind==='neon'?((p._o*7|0)%2?'255,70,200':'60,230,255'):K.col;
+          pass(0,0,gc,kind==='neon'?7:4.4,(kind==='neon'?.28:.2)*fl); pass(0,0,kind==='matrix'?'200,255,210':'245,245,255',1.3,.95*fl); }
+      };
+      const frame=now=>{
+        if(done) return; const t=now-t0;
+        if(skipAt>=0&&!revealed&&t<e){ reveal(); return; }
+        if(!scanned&&t<cc){ if(BootFinale.scanStep(4.5)||t>cc-80){ scanned=true; try{ paths=BootFinale.scanFinish(); }catch(_){ paths=[]; } paths.forEach(p=>{ p._o=order(p); }); } }
+        ctx.clearRect(0,0,W,H);
+        ctx.fillStyle='rgba('+K.bg+','+Math.min(.8,t/350*.8)+')'; ctx.fillRect(0,0,W,H);
+        const q=Math.min(1,t/OP);
+        if(kind==='warp'){
+          ctx.globalCompositeOperation='lighter'; ctx.lineCap='round'; const sp=t<OP?(.15+q*q*3.2):Math.max(0,3.35-(t-OP)/300);
+          for(const s of stars){ const r0=s.r; s.r+=s.v*sp*mn*.012*(.3+s.r/mn*2); if(s.r>mn*1.1){ s.r=R()*8; s.a=R()*6.283; } const len=Math.min(mn*.5,6+sp*s.r*.35); const x0=cx+Math.cos(s.a)*r0, y0=cy+Math.sin(s.a)*r0, x1=cx+Math.cos(s.a)*(s.r+len*.1), y1=cy+Math.sin(s.a)*(s.r+len*.1), xt=cx+Math.cos(s.a)*Math.max(0,s.r-len), yt=cy+Math.sin(s.a)*Math.max(0,s.r-len);
+            const g=ctx.createLinearGradient(xt,yt,x1,y1); const cl=s.c<.5?'170,210,255':(s.c<.8?'255,255,255':'255,190,230'); g.addColorStop(0,'rgba('+cl+',0)'); g.addColorStop(1,'rgba('+cl+',.95)'); ctx.strokeStyle=g; ctx.lineWidth=.8+sp*.5*(s.r/mn); ctx.beginPath(); ctx.moveTo(xt,yt); ctx.lineTo(x1,y1); ctx.stroke(); }
+          if(t>OP-260&&t<OP+400){ const f=1-Math.abs(t-(OP+70))/330; if(f>0){ const g=ctx.createRadialGradient(cx,cy,0,cx,cy,mn*.9*f); g.addColorStop(0,'rgba(255,255,255,'+.9*f+')'); g.addColorStop(1,'rgba(120,160,255,0)'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H); } if(!boomed&&t>OP-30){ boomed=true; sfx('boom'); } }
+          ctx.globalCompositeOperation='source-over';
+        } else if(kind==='nova'){
+          ctx.globalCompositeOperation='lighter';
+          if(t<OP){ const r=4+q*q*70; const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r*3); g.addColorStop(0,'rgba(255,250,230,1)'); g.addColorStop(.3,'rgba(255,190,80,.8)'); g.addColorStop(1,'rgba(255,90,20,0)'); ctx.fillStyle=g; ctx.fillRect(cx-r*3,cy-r*3,r*6,r*6);
+            for(let i=0;i<4;i++){ const a=R()*6.283, sp=1+R()*3; parts.push({x:cx,y:cy,vx:Math.cos(a)*sp*(1+q*3),vy:Math.sin(a)*sp*(1+q*3),l:500+R()*500,b:now}); } if(t>OP*.6&&!this._r){ this._r=1; sfx('rumble'); } }
+          else if(!boomed){ boomed=true; sfx('boom'); flash=now; rings.push(now,now+120,now+260); for(let i=0;i<260;i++){ const a=R()*6.283, sp=3+R()*16; parts.push({x:cx,y:cy,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,l:700+R()*900,b:now}); } }
+          for(let i=parts.length-1;i>=0;i--){ const p=parts[i], age=now-p.b; if(age>p.l){ parts.splice(i,1); continue; } p.x+=p.vx; p.y+=p.vy; p.vx*=.985; p.vy*=.985; const al=1-age/p.l; ctx.fillStyle='rgba(255,'+(150+100*al|0)+','+(60+60*al|0)+','+al+')'; ctx.fillRect(p.x-1.2,p.y-1.2,2.4,2.4); }
+          rings.forEach(rt=>{ const rq=(now-rt)/900; if(rq>0&&rq<1){ ctx.strokeStyle='rgba(255,210,140,'+(.7*(1-rq))+')'; ctx.lineWidth=6*(1-rq)+1; ctx.beginPath(); ctx.arc(cx,cy,rq*Math.hypot(cx,cy),0,6.283); ctx.stroke(); } });
+          const fa=Math.max(0,1-(now-flash)/260); if(fa>0){ ctx.fillStyle='rgba(255,230,190,'+.5*fa+')'; ctx.fillRect(0,0,W,H); }
+          ctx.globalCompositeOperation='source-over';
+        } else if(kind==='glitch'){
+          const inten=t<OP?(.4+q*.6):Math.max(0,1-(t-OP)/700);
+          for(let i=0;i<14*inten;i++){ const y=R()*H, h=2+R()*32, sh=(R()-.5)*90*inten; const cl=R()<.33?'255,0,90':(R()<.5?'0,255,240':'255,255,255'); ctx.fillStyle='rgba('+cl+','+(.08+R()*.25)+')'; ctx.fillRect(sh,y,W,h); }
+          for(let i=0;i<60*inten;i++){ ctx.fillStyle='rgba(255,255,255,'+R()*.5+')'; ctx.fillRect(R()*W,R()*H,2+R()*10,1+R()*2); }
+          if(R()<.15*inten){ ctx.fillStyle='rgba(255,255,255,.18)'; ctx.fillRect(0,0,W,H); sfx('strike'); }
+          ctx.fillStyle='rgba(0,0,0,.25)'; for(let y=0;y<H;y+=4) ctx.fillRect(0,y,W,1);
+          if(t<OP){ ctx.save(); ctx.font='700 '+Math.round(mn*.1)+'px monospace'; ctx.textAlign='center'; const jx=(R()-.5)*14*inten; ctx.fillStyle='rgba(255,0,90,.8)'; ctx.fillText('REBOOT',cx+jx-4,cy); ctx.fillStyle='rgba(0,255,240,.8)'; ctx.fillText('REBOOT',cx+jx+4,cy); ctx.fillStyle='#fff'; ctx.fillText('REBOOT',cx+jx,cy); ctx.restore(); }
+        } else if(kind==='matrix'){
+          ctx.font='14px monospace'; ctx.textBaseline='top'; const fade=t<cc?1:Math.max(0,1-(t-cc)/900);
+          cols.forEach((cl,i)=>{ cl.y+=cl.v*H*.012*(1+(t<OP?q*1.5:0)); if(cl.y-cl.l*cw>H){ cl.y=-R()*H*.3; } if(fade<=0) return;
+            for(let k=0;k<cl.l;k++){ const y=cl.y-k*cw; if(y<-cw||y>H) continue; const al=(1-k/cl.l)*fade; ctx.fillStyle=k===0?'rgba(220,255,230,'+al+')':'rgba(40,'+(200-k*6)+',90,'+al*.85+')'; ctx.fillText(CH[(Math.random()*CH.length)|0],i*cw,y); } });
+          if(t<OP&&t>OP*.5){ ctx.save(); ctx.textAlign='center'; ctx.font='700 '+Math.round(mn*.07)+'px monospace'; ctx.fillStyle='rgba(180,255,200,'+(.5+.5*Math.sin(t*.02))+')'; ctx.fillText('SYSTEM RESTART',cx,cy-mn*.04); ctx.restore(); }
+        } else if(kind==='neon'){
+          ctx.globalCompositeOperation='lighter'; const bz=t<OP?q:1; if(R()<.4*(1-q)+.04){ const y=R()*H; ctx.fillStyle='rgba(255,70,200,.07)'; ctx.fillRect(0,y,W,2); }
+          const g=ctx.createRadialGradient(cx,cy,0,cx,cy,mn*.8); g.addColorStop(0,'rgba(255,60,190,'+.1*bz+')'); g.addColorStop(1,'rgba(40,200,255,0)'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+          if(t<OP&&R()<.5){ const x=R()*W; ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,cy-8); ctx.lineTo(x+(R()-.5)*40,cy+8); ctx.stroke(); sfx('strike'); }
+          ctx.globalCompositeOperation='source-over';
+        }
+        if(t>=cc){ ctx.globalCompositeOperation='lighter'; drawPaths(t); ctx.globalCompositeOperation='source-over';
+          if(t>=d&&!rescan){ rescan=true; BootFinale.scanStart(W,H); }
+          if(rescan&&!snapped){ const dn=BootFinale.scanStep(3.5); if(dn||t>e-140){ snapped=true; let fr=null; try{ fr=BootFinale.scanFinish(); }catch(_){} const ch=fr&&BootFinale.changed(paths,fr); window.__fxReport={kind,traced:paths.length,fresh:fr?fr.length:-1,redrawn:!!ch}; if(ch){ paths=fr; paths.forEach(p=>{ p._o=0; }); } } } }
+        if(t>=e&&!revealed) reveal();
+        if(!done) requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+};
+
+/* ---------------------------------------------------------------------- *
  * BootStorm (v4.12) — the "surprise" intro: THUNDERSTORM AWAKENING.
  * Charge → five lightning strikes converge on one point and feed a plasma
  * orb → overload → the orb detonates into a starburst of bolts and an energy
@@ -3625,7 +3729,7 @@ const BootFinale = {
  * real screen. Tap to skip. Outlines are read live from the page.
  * ---------------------------------------------------------------------- */
 const BootStorm = {
-  T:{charge:900, strike:1500, over:650, circuit:1700, hold:450, fade:700},
+  T:{charge:1100, strike:1800, over:700, circuit:1700, hold:450, fade:700},
   /* one jagged bolt (midpoint displacement) with random side branches */
   bolt(x0,y0,x1,y1,disp,out,depth){
     const pts=[[x0,y0],[x1,y1]]; let d=disp; for(let k=0;k<(depth||6);k++){ for(let i=pts.length-2;i>=0;i--){ const a=pts[i], b=pts[i+1]; const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2; const dx=b[0]-a[0], dy=b[1]-a[1], L=Math.hypot(dx,dy)||1; const o=(Math.random()-.5)*d; pts.splice(i+1,0,[mx-dy/L*o,my+dx/L*o]); } d*=.55; }
@@ -3646,11 +3750,11 @@ const BootStorm = {
       if(o.reduced){ reveal(); return; }
       BootFinale.scanStart(W,H);
       c.addEventListener('pointerdown',()=>{ if(skipAt<0) skipAt=performance.now(); });
-      const strikes=[]; for(let i=0;i<5;i++){ strikes.push({t:a+i*(T.strike/5)+R()*80,fired:false}); }
+      const strikes=[]; for(let i=0;i<8;i++){ strikes.push({t:a+i*(T.strike/8)+R()*80,fired:false}); }
       const bolts=[]; let flashT=-999, ringT=-999, burstDone=false, lastShake=0;
       const spawnStrike=(i,now)=>{ const side=(i*2+((R()*3)|0))%4; let sx,sy; if(side===0){ sx=R()*W; sy=-20; } else if(side===1){ sx=W+20; sy=R()*H*.7; } else if(side===2){ sx=-20; sy=R()*H*.7; } else { sx=R()*W; sy=-20; }
-        const tx=cx+(R()-.5)*24, ty=cy+(R()-.5)*24; const segs=[]; this.bolt(sx,sy,tx,ty,mn*.22,segs); bolts.push({segs,born:now,life:380,w:1.4+i*.2,col:i%2?'160,190,255':'200,160,255',hot:true}); flashT=now; ringT=now; sfx('strike'); };
-      const spawnBurst=(now)=>{ for(let i=0;i<64;i++){ const ang=i/64*6.283+R()*.1, L=mn*(.22+R()*.65); const segs=[]; this.bolt(cx,cy,cx+Math.cos(ang)*L,cy+Math.sin(ang)*L,L*.3,segs,4); bolts.push({segs,born:now,life:420+R()*200,w:1+R()*1.2,col:R()<.5?'255,236,200':'170,200,255',hot:true}); } flashT=now; sfx('boom'); };
+        const tx=cx+(R()-.5)*24, ty=cy+(R()-.5)*24; const segs=[]; this.bolt(sx,sy,tx,ty,mn*.22,segs); bolts.push({segs,born:now,life:380,w:1.4+i*.2,col:i%2?'150,210,255':'225,235,255',hot:true}); flashT=now; ringT=now; sfx('strike'); };
+      const spawnBurst=(now)=>{ for(let i=0;i<120;i++){ const ang=i/120*6.283+R()*.1, L=mn*(.22+R()*.65); const segs=[]; this.bolt(cx,cy,cx+Math.cos(ang)*L,cy+Math.sin(ang)*L,L*.3,segs,4); bolts.push({segs,born:now,life:420+R()*200,w:1+R()*1.2,col:R()<.5?'255,236,200':'170,200,255',hot:true}); } flashT=now; sfx('boom'); };
       const t0=performance.now(); let maxD=1, rev=[];
       const drawPoly=(pts,w,al,col,jit)=>{ ctx.beginPath(); pts.forEach((q,i)=>{ const x=q[0]+(jit?(R()-.5)*jit:0), y=q[1]+(jit?(R()-.5)*jit:0); i?ctx.lineTo(x,y):ctx.moveTo(x,y); }); ctx.strokeStyle='rgba('+col+','+al+')'; ctx.lineWidth=w; ctx.stroke(); };
       const orb=(r,al,now)=>{ if(r<1) return; const g=ctx.createRadialGradient(cx,cy,0,cx,cy,r*2.6); g.addColorStop(0,'rgba(255,255,255,'+al+')'); g.addColorStop(.25,'rgba(190,170,255,'+(.8*al)+')'); g.addColorStop(.6,'rgba(90,110,255,'+(.25*al)+')'); g.addColorStop(1,'rgba(60,70,255,0)'); ctx.fillStyle=g; ctx.fillRect(cx-r*2.6,cy-r*2.6,r*5.2,r*5.2); ctx.lineCap='round'; ctx.lineJoin='round';
@@ -3662,14 +3766,14 @@ const BootStorm = {
         ctx.clearRect(0,0,W,H);
         const dim=Math.min(.62,t/a*.62); ctx.fillStyle='rgba(6,4,20,'+dim+')'; ctx.fillRect(0,0,W,H);
         ctx.globalCompositeOperation='lighter';
-        const sh=(t>a&&t<cc)?Math.max(0,1-(now-flashT)/180):0; if(sh>0&&now-lastShake>30){ lastShake=now; c.style.transform='translate('+((R()-.5)*8*sh)+'px,'+((R()-.5)*8*sh)+'px)'; } else if(sh<=0&&c.style.transform){ c.style.transform=''; }
+        const sh=(t>a&&t<cc)?Math.max(0,1-(now-flashT)/180):0; if(sh>0&&now-lastShake>30){ lastShake=now; c.style.transform='translate('+((R()-.5)*15*sh)+'px,'+((R()-.5)*8*sh)+'px)'; } else if(sh<=0&&c.style.transform){ c.style.transform=''; }
         const fa=Math.max(0,1-(now-flashT)/150); if(fa>0){ ctx.fillStyle='rgba(150,130,255,'+(.2*fa)+')'; ctx.fillRect(0,0,W,H); }
         if(t<a){ /* charge: crackles at the edges and a spark that grows */
           const q=t/a; for(let k=0;k<3;k++){ if(R()<.35+.5*q){ const side=(R()*4)|0; const sx=side<2?R()*W:(side===2?0:W), sy=side<2?(side===0?0:H):R()*H; const segs=[]; this.bolt(sx,sy,sx+(cx-sx)*(.1+R()*.14*q+.05),sy+(cy-sy)*(.1+R()*.14*q+.05),mn*.06,segs,5); segs.forEach(p=>{ drawPoly(p,2,.12,'140,150,255'); drawPoly(p,.8,.6,'220,225,255'); }); } }
           orb(3+q*10,.5+.4*q,now); if(t>a*.55&&!this._h1){ this._h1=true; sfx('rumble'); }
         } else if(t<b){
           strikes.forEach((s,i)=>{ if(!s.fired&&t>=s.t){ s.fired=true; spawnStrike(i,now); } });
-          const n=strikes.filter(s=>s.fired).length; orb(12+n*11+Math.sin(now*.03)*2,.8,now);
+          const n=strikes.filter(s=>s.fired).length; orb(12+n*8+Math.sin(now*.03)*2,.8,now);
           const rq=(now-ringT)/520; if(rq>=0&&rq<1){ ctx.strokeStyle='rgba(190,175,255,'+(.5*(1-rq))+')'; ctx.lineWidth=3*(1-rq)+.5; ctx.beginPath(); ctx.arc(cx,cy,rq*mn*.55,0,6.283); ctx.stroke(); }
         } else if(t<cc){
           const q=(t-b)/T.over; const r=66+Math.sin(q*40)*5*(1+q)-q*q*40; orb(Math.max(8,r),.9+.1*Math.sin(q*60),now);
@@ -3678,6 +3782,8 @@ const BootStorm = {
           if(!burstDone){ burstDone=true; spawnBurst(now); ringT=now; }
           const rq=Math.min(1,(t-cc)/(T.circuit*.8)); const ringR=rq*(maxD+80); ctx.strokeStyle='rgba(210,200,255,'+(.55*(1-rq*.7))+')'; ctx.lineWidth=4*(1-rq)+1; ctx.beginPath(); ctx.arc(cx,cy,ringR,0,6.283); ctx.stroke();
           ctx.strokeStyle='rgba(120,140,255,'+(.25*(1-rq))+')'; ctx.lineWidth=14*(1-rq)+2; ctx.beginPath(); ctx.arc(cx,cy,ringR*.97,0,6.283); ctx.stroke();
+          if(R()<.6&&paths.length){ const pp=paths[(R()*paths.length)|0], q0=pp.pts[(R()*pp.pts.length)|0]; if(q0&&now-(this._arc||0)>40){ this._arc=now; const ang=R()*6.283, L=30+R()*70, sg=[]; this.bolt(q0[0],q0[1],q0[0]+Math.cos(ang)*L,q0[1]+Math.sin(ang)*L,L*.4,sg,3); bolts.push({segs:sg,born:now,life:220,w:1,col:'170,210,255'}); } }
+          const rq2=Math.min(1,(t-cc)/(T.circuit*.55)); ctx.strokeStyle='rgba(255,255,255,'+(.4*(1-rq2))+')'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(cx,cy,rq2*(maxD+80)*1.15,0,6.283); ctx.stroke();
           if(t-cc<500) orb(Math.max(1,70*(1-(t-cc)/500)),.8*(1-(t-cc)/500),now);
           ctx.lineJoin='round'; ctx.lineCap='round';
           for(const p of paths){ const lit=ringR-p._d; if(lit<=0) continue; const age=lit/(maxD+80)*(T.circuit*.8); const j=age<650?3.2*(1-age/650):0; const flick=age<650?(.55+.45*R()):1;
@@ -4711,7 +4817,7 @@ const Boot = {
       return;
     }
 
-    if(this.pickStyle()==='storm'){ await this.playStorm(openOnboarding); return; }
+    { const _k=this.pickStyle(!!force); if(_k!=='hole'){ await this.playStorm(openOnboarding,_k); return; } }
 
     [flogo, akira].forEach(el=>el.classList.remove('enter','collide','exit'));
     wordmark.classList.remove('rise','exit');
@@ -4880,8 +4986,15 @@ const Boot = {
     }
   },
 
-  pickStyle(){ const st = Config.state.bootStyle || 'random'; if(st==='storm'||st==='hole') return st; return Math.random()<.5 ? 'storm' : 'hole'; },
-  async playStorm(openOnboarding){
+  pickStyle(reboot){
+    const ALL=['hole','storm','warp','nova','glitch','matrix','neon'], LAUNCH=['hole','storm','warp','nova'], REB=['glitch','matrix','neon'];
+    const st = (reboot ? Config.state.rebootStyle : Config.state.bootStyle) || 'random';
+    if(ALL.indexOf(st)>=0) return st;
+    const pool = reboot ? REB : LAUNCH; let k = pool[(Math.random()*pool.length)|0];
+    if(pool.length>1 && k===this._lastKind) k = pool[(pool.indexOf(k)+1)%pool.length];
+    this._lastKind = k; return k;
+  },
+  async playStorm(openOnboarding,kind){
     const seq = document.getElementById('bootSequence');
     const canvasEl = document.getElementById('bootCanvas');
     const bubble = document.getElementById('onboardBubble');
@@ -4893,7 +5006,7 @@ const Boot = {
     requestAnimationFrame(()=>canvasEl.classList.add('show'));
     if(openOnboarding){ const input = document.getElementById('onboardProfileInput'); if(input) input.value = Config.state.userProfile || ''; UI.openSheet('onboardOverlay'); }
     await Utils.sleep(60);
-    await BootStorm.run({
+    await (kind&&kind!=='storm'?BootFX:BootStorm).run(...(kind&&kind!=='storm'?[kind]:[]),{
       reduced: this.reduced,
       sfx: k=>{ if(k==='strike'){ this.thud(0); this.shutterBurst(0.0,3,0.03); } else if(k==='boom'){ this.thud(0); this.thud(0.05); this.chime(0.06); } else if(k==='rumble'){ this.thud(0); } },
       reveal: ()=>{ if(!openOnboarding){ canvasEl.style.transition='opacity .7s ease'; canvasEl.classList.remove('show'); } }
@@ -5196,7 +5309,7 @@ const Config = {
       youtubeApiKey:'',
       webSearchProvider:'auto', tavilyApiKey:'', serperApiKey:'',
       memoryEnabled:true,
-      speakAloud:false, voiceAutoSend:true, bootAnimation:true, bootStyle:'random',
+      speakAloud:false, voiceAutoSend:true, bootAnimation:true, bootStyle:'random', rebootStyle:'random',
       ldUrl:'http://127.0.0.1:8081', ldSteps:20, ldSize:512, ldCfg:7.5, ldNegative:'blurry, low quality, deformed, bad anatomy, extra fingers, watermark, text', ldImprove:true,
       personaBlurb:"Direct, a little dry, genuinely curious about what you're working on.",
       personality:{ warmth:65, humor:40, directness:70, curiosity:80, formality:25 },
@@ -8535,7 +8648,7 @@ const UI = {
       'personalitySliders','cfgPersonaName','cfgUserProfile',
       'onboardOverlay','onboardProfileInput','onboardSaveBtn','onboardSkipBtn',
       'cfgMemoryEnabled','tasteInput','tasteSaveBtn','memFilters','memList','memAddBtn','memExportBtn','memImportBtn','memImportInput','memClearBtn',
-      'voiceStatusLine','cfgBootAnim','cfgBootStyle','cfgLdUrl','cfgLdSize','cfgLdSteps','cfgLdCfg','cfgLdNeg','cfgLdImprove','testLdBtn','ldTestLine','cfgSpaceNotes','cfgSpaceMemory','spClearBtn','cfgVoiceEngine','cfgTtsEngine','cfgTtsVoice','testSpeakBtn','testMicBtn','voiceTestLine','cfgSpeakAloud','cfgVoiceAutoSend','cfgTimeAccent','cfgTextSize','cfgYoutubeKey',
+      'voiceStatusLine','cfgBootAnim','cfgBootStyle','cfgRebootStyle','cfgLdUrl','cfgLdSize','cfgLdSteps','cfgLdCfg','cfgLdNeg','cfgLdImprove','testLdBtn','ldTestLine','cfgSpaceNotes','cfgSpaceMemory','spClearBtn','cfgVoiceEngine','cfgTtsEngine','cfgTtsVoice','testSpeakBtn','testMicBtn','voiceTestLine','cfgSpeakAloud','cfgVoiceAutoSend','cfgTimeAccent','cfgTextSize','cfgYoutubeKey',
       'gmailStatusLine','cfgGoogleClientId','connectGmailBtn','disconnectGmailBtn',
       'ytAccountStatusLine','connectYoutubeBtn','disconnectYoutubeBtn',
       'instaStatusLine','cfgInstaAppId','cfgInstaRedirect','cfgInstaScope','connectInstaBtn',
@@ -11304,6 +11417,7 @@ Object.assign(UI, {
     this.el.cfgVoiceAutoSend.checked = c.voiceAutoSend;
     this.el.cfgBootAnim.checked = c.bootAnimation !== false;
     if(this.el.cfgBootStyle) this.el.cfgBootStyle.value = c.bootStyle || 'random';
+    if(this.el.cfgRebootStyle) this.el.cfgRebootStyle.value = c.rebootStyle || 'random';
     this.el.cfgLdUrl.value = c.ldUrl||'http://127.0.0.1:8081'; this.el.cfgLdSize.value = String(c.ldSize||512);
     this.el.cfgLdSteps.value = c.ldSteps||20; this.el.cfgLdCfg.value = c.ldCfg||7.5;
     this.el.cfgLdNeg.value = (c.ldNegative!==undefined ? c.ldNegative : ''); this.el.cfgLdImprove.checked = c.ldImprove !== false;
@@ -11977,6 +12091,7 @@ function bindEvents(){
   document.getElementById('attachBtn').addEventListener('click', ()=>document.getElementById('imgFile').click());
   document.getElementById('imgFile').addEventListener('change', (e)=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(f) Images.attach(f); });
   el.chatInput.addEventListener('paste', (e)=>{ const it=[...(e.clipboardData&&e.clipboardData.items||[])].find(x=>x.type&&x.type.startsWith('image/')); if(it){ e.preventDefault(); Images.attach(it.getAsFile()); } });
+  if(el.cfgRebootStyle) el.cfgRebootStyle.addEventListener('change', ()=>{ Config.state.rebootStyle = el.cfgRebootStyle.value; Config.save(); UI.toast('Reboot style saved.'); });
   if(el.cfgBootStyle) el.cfgBootStyle.addEventListener('change', ()=>{ Config.state.bootStyle = el.cfgBootStyle.value; Config.save(); UI.toast('Intro style saved.'); });
   el.cfgBootAnim.addEventListener('change', ()=>{ Config.state.bootAnimation = el.cfgBootAnim.checked; Config.save(); UI.toast(el.cfgBootAnim.checked ? 'Intro on — you\'ll see it every time you open Blitz.' : 'Intro off — Blitz will skip straight in.'); });
   el.cfgVoiceAutoSend.addEventListener('change', ()=>{ Config.state.voiceAutoSend=el.cfgVoiceAutoSend.checked; Config.save(); });
@@ -15697,6 +15812,11 @@ Object.assign(Aki,{
 });
 
 const PATCH_NOTES = [
+  {ver:'4.14', label:'Boot Lab', items:[
+    'Five new boot animations: Warp jump, Supernova (normal start-up) and Glitch, Matrix rain, Neon sign (reboot).',
+    'Reboot button now has its own animation set and its own Settings choice, different from normal start-up.',
+    'Chidori storm is bigger: 8 strikes, 120-bolt burst, double shockwave, and sparks arcing off the lit outlines.'
+  ]},
   {ver:'4.13', label:'Storm Boot', items:[
     '🌩 NEW surprise intro: Thunderstorm Awakening. Lightning strikes converge and feed a plasma orb, it detonates into a starburst, and a ring powers on your real screen like circuits. Tap to skip. Pick it in Settings → Intro style (Surprise me / Black hole / Lightning storm).',
     '⭐ Black hole finale: seven hero comets spiral in and crash into 30 stars that sketch your screen one section at a time over 3 seconds, hold for half a second, then the real screen fades in.',
