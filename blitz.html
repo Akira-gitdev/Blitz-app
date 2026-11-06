@@ -3454,84 +3454,130 @@ void main(){
 };
 
 /* ---------------------------------------------------------------------- *
- * BootFinale (v4.12) — what happens after the triple tap on the black hole:
- * comet-stars rush in from every side and spiral around the hole, faster and
- * faster for ~1s, crash together in the middle, burst outward, then every star
- * sketches one outline of the real Blitz screen (read live from the page).
- * A white flash, and the sketch becomes the real UI. Whole build-up ~1.5s.
+ * BootFinale (v4.12b) — after the triple tap:
+ *  1) SEVEN hero comets, each on its own tilted orbit, spiral around the hole
+ *     faster and faster (~1.1s), long tapered tails, sparks, lens flares.
+ *  2) They crash together in the middle; a bloom and a ring.
+ *  3) The crash bursts into ~30 small stars that fly out and then trace the
+ *     real Blitz screen (read live from the page) over 2 seconds.
+ *  4) Outlines pulse once, then the real screen fades in as the sketch fades out.
  * ---------------------------------------------------------------------- */
 const BootFinale = {
-  T:{spiral:1100, collide:150, burst:260, curve:330, trace:900},
-  PAL:['255,214,102','255,255,255','255,255,255','255,255,255','168,140,255','96,166,255','255,118,128'],
+  T:{spiral:1150, collide:170, burst:300, curve:330, trace:2000, pulse:240, fade:700},
+  COL7:['255,214,102','150,210,255','255,120,200','170,140,255','255,150,80','120,255,225','255,255,255'],
+  COLT:['255,244,214','255,236,190','255,255,255','255,226,150','190,215,255','255,255,255'],
   SKIP:'#bootSequence,#bootCanvas,#bootHoleCanvas,#bootBurstCanvas,#bootFlash,.boot-door,#bootFinaleSketch,#bootFinaleStars,#bootTrail',
-  rr(x,y,w,h,r){
-    const pts=[]; r=Math.max(0,Math.min(r,w/2,h/2)); const k=5;
-    const arc=(cx,cy,a0,a1)=>{ for(let i=0;i<=k;i++){ const a=a0+(a1-a0)*i/k; pts.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]); } };
-    if(r<1.5){ pts.push([x,y],[x+w,y],[x+w,y+h],[x,y+h]); } else { arc(x+w-r,y+r,-Math.PI/2,0); arc(x+w-r,y+h-r,0,Math.PI/2); arc(x+r,y+h-r,Math.PI/2,Math.PI); arc(x+r,y+r,Math.PI,Math.PI*1.5); }
-    pts.push(pts[0]); return this.mk(pts,true);
-  },
+  NOTAG:new Set(['SCRIPT','STYLE','LINK','META','NOSCRIPT','HEAD','TITLE','BR','PATH','CIRCLE','RECT','LINE','POLYLINE','POLYGON','G','DEFS','USE','TSPAN','STOP']),
   mk(pts,closed){ const cum=[0]; for(let i=1;i<pts.length;i++) cum.push(cum[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1])); return {pts,cum,len:Math.max(1,cum[cum.length-1]),closed:!!closed}; },
   at(p,s){ s=Math.max(0,Math.min(p.len,s)); let lo=0,hi=p.cum.length-1; while(hi-lo>1){ const m=(lo+hi)>>1; if(p.cum[m]<=s) lo=m; else hi=m; } const a=p.pts[lo], b=p.pts[hi], seg=p.cum[hi]-p.cum[lo]||1, u=(s-p.cum[lo])/seg; return [a[0]+(b[0]-a[0])*u, a[1]+(b[1]-a[1])*u]; },
-  collect(W,H){
-    const out=[], rects=[]; let els=[];
-    try{ els=Array.from(document.body.querySelectorAll('button,input,textarea,select,a.btn,nav,header,h1,h2,h3,img,svg,.glass,.card,[class*="card"],[class*="panel"],[class*="chip"],[class*="tab"],[class*="bubble"],[class*="msg"],[class*="pill"],[class*="avatar"],[class*="toolbar"],[class*="bar"]')).slice(0,1500); }catch(e){}
-    const cand=[];
-    for(const el of els){
-      try{ if(el.closest(this.SKIP)) continue; if(el.checkVisibility&&!el.checkVisibility({opacityProperty:true,visibilityProperty:true})) continue;
-        const r=el.getBoundingClientRect(); if(r.width<16||r.height<14) continue;
-        const x0=Math.max(2,r.left), y0=Math.max(2,r.top), x1=Math.min(W-2,r.right), y1=Math.min(H-2,r.bottom); const w=x1-x0, h=y1-y0; if(w<16||h<14||w*h<350) continue; if(w>W*.97&&h>H*.8) continue;
-        const cs=getComputedStyle(el); const rad=parseFloat(cs.borderTopLeftRadius)||0; cand.push({x:x0,y:y0,w,h,r:rad,a:w*h,tag:el.tagName}); }catch(e){}
+  slice(p,s0,s1){ const pts=[this.at(p,s0)]; for(let i=0;i<p.pts.length;i++){ if(p.cum[i]>s0&&p.cum[i]<s1) pts.push(p.pts[i]); } pts.push(this.at(p,s1)); return this.mk(pts,false); },
+  rev(p){ return this.mk(p.pts.slice().reverse(),false); },
+  /* rounded rectangle with a different radius on each corner, exactly like CSS */
+  rr(x,y,w,h,R){
+    let [tl,tr,br,bl]=R; const f=Math.min(1,w/Math.max(1,tl+tr),w/Math.max(1,bl+br),h/Math.max(1,tl+bl),h/Math.max(1,tr+br)); tl*=f; tr*=f; br*=f; bl*=f;
+    const pts=[], k=8; const arc=(cx,cy,r,a0,a1)=>{ if(r<.8){ pts.push([cx+Math.cos(a1)*0,cy]); return; } for(let i=0;i<=k;i++){ const a=a0+(a1-a0)*i/k; pts.push([cx+Math.cos(a)*r,cy+Math.sin(a)*r]); } };
+    const P=Math.PI; if(tr<.8) pts.push([x+w,y]); else arc(x+w-tr,y+tr,tr,-P/2,0); if(br<.8) pts.push([x+w,y+h]); else arc(x+w-br,y+h-br,br,0,P/2); if(bl<.8) pts.push([x,y+h]); else arc(x+bl,y+h-bl,bl,P/2,P); if(tl<.8) pts.push([x,y]); else arc(x+tl,y+tl,tl,P,P*1.5);
+    pts.push(pts[0]); return this.mk(pts,true);
+  },
+  rad(v,w,h){ const t=String(v||'0').trim().split(/\s+/)[0]; const n=parseFloat(t)||0; return /%$/.test(t)?n/100*Math.min(w,h):n; },
+  alpha(c){ if(!c||c==='transparent') return 0; const m=c.match(/rgba?\(([^)]+)\)/); if(!m) return 1; const p=m[1].split(/[,/ ]+/).filter(Boolean); return p.length>=4?parseFloat(p[3]):1; },
+  /* ---- reads the real screen a little at a time (so the animation never hitches) ---- */
+  scanStart(W,H){ this._W=W; this._H=H; this._rects=[]; this._lines=[]; this._i=0; this._els=[]; try{ this._els=Array.from(document.body.querySelectorAll('*')).slice(0,4000); }catch(e){} this._done=false; },
+  scanStep(ms){
+    const t0=performance.now(), W=this._W, H=this._H, els=this._els;
+    while(this._i<els.length&&performance.now()-t0<ms){
+      const el=els[this._i++]; try{
+        if(this.NOTAG.has(el.tagName)) continue; const r=el.getBoundingClientRect(); if(r.right<0||r.bottom<0||r.left>W||r.top>H) continue;
+        const big=r.width>=14&&r.height>=12; const cs=getComputedStyle(el); if(cs.display==='none'||cs.visibility==='hidden'||parseFloat(cs.opacity)<.05) continue; if(cs.pointerEvents==='none'&&r.width*r.height>W*H*.12) continue; if(Math.min(r.width,r.height)>W*.42&&this.rad(cs.borderTopLeftRadius,r.width,r.height)>=Math.min(r.width,r.height)*.45) continue;
+        if(el.id&&/^boot/.test(el.id)) continue;
+        let hasText=false; for(const n of el.childNodes){ if(n.nodeType===3&&/\S/.test(n.nodeValue)&&n.nodeValue.trim().length>1){ hasText=true; break; } }
+        if(big){
+          const tag=el.tagName; let box=/^(IMG|SVG|CANVAS|VIDEO|INPUT|TEXTAREA|SELECT|BUTTON)$/.test(tag);
+          if(!box){ box=this.alpha(cs.backgroundColor)>.05||(cs.backgroundImage&&cs.backgroundImage!=='none')||(parseFloat(cs.borderTopWidth)>0&&cs.borderTopStyle!=='none'&&this.alpha(cs.borderTopColor)>.04)||(cs.boxShadow&&cs.boxShadow!=='none')||(cs.backdropFilter&&cs.backdropFilter!=='none')||(cs.webkitBackdropFilter&&cs.webkitBackdropFilter!=='none'); }
+          if(box&&!(r.width>W*.97&&r.height>H*.85)&&!el.closest(this.SKIP)){ if(!el.checkVisibility||el.checkVisibility({opacityProperty:true,visibilityProperty:true})){ const R=[this.rad(cs.borderTopLeftRadius,r.width,r.height),this.rad(cs.borderTopRightRadius,r.width,r.height),this.rad(cs.borderBottomRightRadius,r.width,r.height),this.rad(cs.borderBottomLeftRadius,r.width,r.height)]; this._rects.push({x:r.left,y:r.top,w:r.width,h:r.height,R,a:r.width*r.height}); } }
+        }
+        if(hasText&&this._lines.length<400&&!el.closest(this.SKIP)){ const rg=document.createRange(); for(const n of el.childNodes){ if(n.nodeType!==3||!/\S/.test(n.nodeValue)) continue; rg.selectNodeContents(n); for(const q of rg.getClientRects()){ if(q.width>26&&q.height>6&&q.height<80&&q.bottom>0&&q.top<H&&q.right>0&&q.left<W) this._lines.push({x0:Math.max(0,q.left),x1:Math.min(W,q.right),y:q.bottom-1,w:q.width}); } } }
+      }catch(e){}
     }
-    cand.sort((a,b)=>b.a-a.a);
-    for(const c of cand){ if(rects.length>=64) break; if(rects.some(q=>Math.abs(q.x-c.x)<4&&Math.abs(q.y-c.y)<4&&Math.abs(q.w-c.w)<6&&Math.abs(q.h-c.h)<6)) continue; rects.push(c); out.push(this.rr(c.x,c.y,c.w,c.h,c.r)); }
-    let tx=[]; try{ tx=Array.from(document.body.querySelectorAll('h1,h2,h3,h4,p,label,small,.title,[class*="title"],[class*="sub"]')).slice(0,400); }catch(e){}
-    let nl=0; for(const el of tx){ if(nl>=14) break; try{ if(el.closest(this.SKIP)) continue; if(el.checkVisibility&&!el.checkVisibility({opacityProperty:true,visibilityProperty:true})) continue; const r=el.getBoundingClientRect(); if(r.width<50||r.height<8||r.height>70||r.bottom<0||r.top>H||r.right<0||r.left>W) continue; const y=Math.min(H-3,Math.max(3,r.top+r.height*.78)), x0=Math.max(4,r.left), x1=Math.min(W-4,r.left+Math.min(r.width,260)); if(x1-x0<40) continue; out.push(this.mk([[x0,y],[x1,y]],false)); nl++; }catch(e){} }
-    if(out.length<10){ const m=14, hh=Math.min(64,H*.09); out.push(this.rr(m,m+10,W-2*m,hh,16)); out.push(this.rr(m,H-hh-m-6,W-2*m,hh,hh/2)); for(let i=0;i<5;i++){ const y=m+hh+34+i*((H-3*hh-90)/5); out.push(this.rr(m+(i%2?24:0),y,W-2*m-(i%2?24:0),Math.max(30,(H-3*hh-130)/6),14)); } }
+    if(this._i>=els.length) this._done=true; return this._done;
+  },
+  scanFinish(){
+    const out=[], rects=this._rects.sort((a,b)=>b.a-a.a), keep=[];
+    for(const c of rects){ if(keep.length>=110) break; if(keep.some(q=>Math.abs(q.x-c.x)<3&&Math.abs(q.y-c.y)<3&&Math.abs(q.w-c.w)<4&&Math.abs(q.h-c.h)<4)) continue; keep.push(c); out.push(this.rr(c.x,c.y,c.w,c.h,c.R)); }
+    const ls=this._lines.sort((a,b)=>b.w-a.w), seen=[]; let n=0; for(const l of ls){ if(n>=46) break; if(seen.some(q=>Math.abs(q.y-l.y)<3&&Math.abs(q.x0-l.x0)<6&&Math.abs(q.x1-l.x1)<10)) continue; seen.push(l); out.push(this.mk([[l.x0,l.y],[l.x1,l.y]],false)); n++; }
+    const W=this._W,H=this._H; if(out.length<8){ const m=14, hh=Math.min(64,H*.09); out.push(this.rr(m,m+10,W-2*m,hh,[16,16,16,16])); out.push(this.rr(m,H-hh-m-6,W-2*m,hh,[hh/2,hh/2,hh/2,hh/2])); for(let i=0;i<5;i++){ const y=m+hh+34+i*((H-3*hh-90)/5); out.push(this.rr(m,y,W-2*m,Math.max(30,(H-3*hh-130)/6),[14,14,14,14])); } }
     return out;
   },
+  /* split into pieces and share them evenly between the stars so every star finishes together */
+  plan(paths,count,cx,cy){
+    let total=0; paths.forEach(p=>total+=p.len); const Lt=Math.max(70,total/(count*2.4)); const pieces=[];
+    paths.forEach(p=>{ if(p.len>Lt*1.5){ const k=Math.ceil(p.len/Lt); for(let j=0;j<k;j++) pieces.push(this.slice(p,p.len*j/k,p.len*(j+1)/k)); } else pieces.push(p.closed?this.slice(p,0,p.len):p); });
+    count=Math.max(1,Math.min(count,pieces.length)); const bins=[]; for(let i=0;i<count;i++) bins.push({load:0,items:[]});
+    pieces.sort((a,b)=>b.len-a.len).forEach(p=>{ let b=bins[0]; for(const q of bins) if(q.load<b.load) b=q; b.items.push(p); b.load+=p.len; });
+    return bins.map(b=>{ const segs=[]; let cur=[cx,cy], d=0; const left=b.items.slice();
+      while(left.length){ let bi=0,bd=1e9,brev=false; left.forEach((p,i)=>{ const s=p.pts[0], e=p.pts[p.pts.length-1]; const ds=Math.hypot(s[0]-cur[0],s[1]-cur[1]), de=Math.hypot(e[0]-cur[0],e[1]-cur[1]); if(ds<bd){ bd=ds; bi=i; brev=false; } if(de<bd){ bd=de; bi=i; brev=true; } });
+        let p=left.splice(bi,1)[0]; if(brev) p=this.rev(p); const s=p.pts[0]; if(segs.length&&bd>3){ const hl=bd*.35; segs.push({hop:true,a:cur,b:s,start:d,end:d+hl}); d+=hl; }
+        segs.push({p,start:d,end:d+p.len}); d+=p.len; cur=p.pts[p.pts.length-1]; }
+      return {segs,total:Math.max(1,d),first:segs.length?(segs[0].hop?segs[0].a:segs[0].p.pts[0]):[cx,cy]}; });
+  },
+  posAt(plan,d){ d=Math.max(0,Math.min(plan.total,d)); for(const g of plan.segs){ if(d<=g.end||g===plan.segs[plan.segs.length-1]){ const u=(d-g.start); if(g.hop){ const k=Math.min(1,u/Math.max(1,g.end-g.start)); return [g.a[0]+(g.b[0]-g.a[0])*k,g.a[1]+(g.b[1]-g.a[1])*k]; } return this.at(g.p,u); } } return plan.first; },
   run(o){
     o=o||{};
     return new Promise(resolve=>{
-      const flash=document.getElementById('bootFlash'), hole=document.getElementById('bootHoleCanvas');
-      const finish=()=>{ try{ sk.remove(); st.remove(); }catch(e){} if(flash){ flash.style.transition=''; flash.classList.remove('on','off'); flash.style.opacity=''; } if(hole){ hole.style.opacity=''; hole.style.transition=''; } resolve(); };
+      const hole=document.getElementById('bootHoleCanvas');
       const W=innerWidth, H=innerHeight, dpr=Math.min(window.devicePixelRatio||1,1.5);
       const mkc=(id,z)=>{ const c=document.createElement('canvas'); c.id=id; c.setAttribute('aria-hidden','true'); c.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:'+z+';pointer-events:none;'; c.width=Math.round(W*dpr); c.height=Math.round(H*dpr); document.body.appendChild(c); const x=c.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); return [c,x]; };
       const [sk,skx]=mkc('bootFinaleSketch',164), [st,stx]=mkc('bootFinaleStars',165);
-      const doFlash=async()=>{ if(flash){ flash.style.transition='opacity 80ms ease-out'; flash.classList.remove('off'); flash.classList.add('on'); } await new Promise(r=>setTimeout(r,90)); try{ o.reveal&&o.reveal(); }catch(e){} if(hole){ hole.style.opacity='0'; } await new Promise(r=>setTimeout(r,50)); if(flash){ flash.classList.remove('on'); flash.style.transition='opacity 480ms ease-in'; flash.style.opacity='0'; } sk.style.transition='opacity 520ms ease-in'; st.style.transition='opacity 300ms ease-in'; sk.style.opacity='0'; st.style.opacity='0'; setTimeout(finish,560); };
-      if(o.reduced){ doFlash(); return; }
-      let paths=[]; try{ paths=this.collect(W,H); }catch(e){ paths=[]; }
-      const T=this.T, t1=T.spiral, t2=t1+T.collide, t3=t2+T.burst, t4=t3+T.curve, t5=t4+T.trace;
-      const N=Math.max(36,Math.min(84,paths.length)); const cx=W/2, cy=H/2, mn=Math.min(W,H), mx=Math.max(W,H); const R=Math.random; const stars=[];
-      const domDir=R()<.5?1:-1;
-      for(let i=0;i<N;i++){ const path=paths[i%paths.length]; stars.push({a0:R()*Math.PI*2,R0:mx*(.58+R()*.32),dir:R()<.85?domDir:-domDir,turns:2.2+R()*1.8,delay:R()*.22,col:this.PAL[(R()*this.PAL.length)|0],w:1.2+R()*1.5,ba:R()*Math.PI*2,bR:mn*(.2+R()*.42),path,off:i>=paths.length?R():0,sgn:R()<.5?1:-1,x:cx,y:cy,px:null,py:null,bx:0,by:0,sx:0,sy:0,tx:null,ty:null}); }
-      const ease=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2; const sm=u=>u*u*(3-2*u);
-      const seg=(ctx,x0,y0,x1,y1,w,col,al)=>{ ctx.strokeStyle='rgba('+col+','+al+')'; ctx.lineWidth=w; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke(); };
-      const head=(s,al)=>{ stx.fillStyle='rgba('+s.col+','+(.16*al)+')'; stx.beginPath(); stx.arc(s.x,s.y,s.w*3.2,0,6.283); stx.fill(); stx.fillStyle='rgba(255,255,255,'+al+')'; stx.beginPath(); stx.arc(s.x,s.y,s.w*.9,0,6.283); stx.fill(); };
-      const spiralPos=(s,p)=>{ const e=1-Math.pow(p,2.15), r=3+(s.R0-3)*e; const th=s.a0+s.dir*s.turns*6.283*Math.pow(p,2.6); return [cx+Math.cos(th)*r, cy+Math.sin(th)*r*.82]; };
-      const t0=performance.now(); let flashed=false, burstSet=false, curveSet=false, prevT=0;
-      if(hole){ hole.style.transition='none'; }
+      const finish=()=>{ try{ sk.remove(); st.remove(); }catch(e){} if(hole){ hole.style.opacity=''; hole.style.transition=''; } resolve(); };
+      const T=this.T; const t1=T.spiral, t2=t1+T.collide, t3=t2+T.burst, t4=t3+T.curve, t5=t4+T.trace, t6=t5+T.pulse;
+      const cx=W/2, cy=H/2, mn=Math.min(W,H), mx=Math.max(W,H), R=Math.random;
+      const reveal=()=>{ try{ o.reveal&&o.reveal(); }catch(e){} if(hole) hole.style.opacity='0'; sk.style.transition='opacity '+T.fade+'ms ease-in-out'; st.style.transition='opacity 350ms ease-in'; sk.style.opacity='0'; st.style.opacity='0'; setTimeout(finish,T.fade+60); };
+      if(o.reduced){ reveal(); return; }
+      this.scanStart(W,H);
+      if(hole) hole.style.transition='none';
+      /* ---- the seven hero comets ---- */
+      const S7=[]; for(let i=0;i<7;i++){ S7.push({col:this.COL7[i],a0:i/7*6.283+R()*.7,R0:mx*(.6+R()*.28),dir:(i%7)<4?1:-1,turns:3+R()*2.2,phi:R()*Math.PI,ecc:.36+R()*.56,delay:i*.02+R()*.04,w:2.1+R()*1.5,hist:[],wob:R()*6.28,x:cx,y:cy}); }
+      const pos7=(s,p)=>{ const e=1-Math.pow(p,2.2), r=(4+(s.R0-4)*e)*(1+.05*Math.sin(p*17+s.wob)*(1-p)); const th=s.a0+s.dir*s.turns*6.283*Math.pow(p,2.55); const x=Math.cos(th)*r, y=Math.sin(th)*r*s.ecc, c=Math.cos(s.phi), n=Math.sin(s.phi); return [cx+x*c-y*n, cy+x*n+y*c]; };
+      const sparks=[]; const rgb=c=>c.split(',').map(Number); const mixc=(a,b,k)=>{ const A=rgb(a),B=rgb(b); return Math.round(A[0]+(B[0]-A[0])*k)+','+Math.round(A[1]+(B[1]-A[1])*k)+','+Math.round(A[2]+(B[2]-A[2])*k); };
+      const drawTail=(s,now,tailMs,wmul,al)=>{ const h=s.hist; while(h.length&&now-h[0].t>tailMs) h.shift(); const n=h.length; if(n<2) return; stx.lineCap='round'; for(let k=1;k<n;k++){ const f=k/(n-1), a=h[k-1], b=h[k]; const w=s.w*(.15+.95*f)*wmul; const col=mixc(s.col,'255,255,255',Math.pow(f,2.6)); const alpha=Math.pow(f,1.25)*al; if(k%2===0){ stx.strokeStyle='rgba('+col+','+(alpha*.14)+')'; stx.lineWidth=w*3.4; stx.beginPath(); stx.moveTo(a.x,a.y); stx.lineTo(b.x,b.y); stx.stroke(); } stx.strokeStyle='rgba('+col+','+alpha+')'; stx.lineWidth=w; stx.beginPath(); stx.moveTo(a.x,a.y); stx.lineTo(b.x,b.y); stx.stroke(); } };
+      const glow=(x,y,r,col,al)=>{ const g=stx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,'rgba('+col+','+al+')'); g.addColorStop(1,'rgba('+col+',0)'); stx.fillStyle=g; stx.fillRect(x-r,y-r,r*2,r*2); };
+      const flare=(x,y,len,rot,al)=>{ stx.lineWidth=1.2; for(let k=0;k<2;k++){ const a=rot+k*Math.PI/2; const dx=Math.cos(a)*len, dy=Math.sin(a)*len; const g=stx.createLinearGradient(x-dx,y-dy,x+dx,y+dy); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(255,255,255,'+al+')'); g.addColorStop(1,'rgba(255,255,255,0)'); stx.strokeStyle=g; stx.beginPath(); stx.moveTo(x-dx,y-dy); stx.lineTo(x+dx,y+dy); stx.stroke(); } };
+      /* ---- tracers (made at the crash) ---- */
+      let tr=[], plans=null, scanned=false;
+      const ease=u=>u<.5?2*u*u:1-Math.pow(-2*u+2,2)/2, sm=u=>u*u*(3-2*u);
+      const t0=performance.now(); let prevT=0, burstMade=false, curveSet=false, pulsed=false, revealed=false, paths=[];
       const frame=now=>{
         if(!document.body.contains(st)) return; const t=now-t0;
-        stx.globalCompositeOperation='destination-out'; stx.fillStyle='rgba(0,0,0,'+(t<t2?.22:.34)+')'; stx.fillRect(0,0,W,H); stx.globalCompositeOperation='lighter';
-        if(t<t1){
-          const tp=t/t1; if(hole) hole.style.opacity=String(Math.max(0,1-Math.pow(Math.max(0,(tp-.35)/.65),1.6)));
-          for(const s of stars){ const dur=1-.22, p=Math.max(0,Math.min(1,(tp-s.delay)/dur)); if(p<=0) continue; const pp=Math.max(0,prevT/t1-s.delay)/dur; const steps=3; let ppx=s.px,ppy=s.py; for(let k=1;k<=steps;k++){ const pk=Math.max(0,Math.min(1,pp+(p-pp)*k/steps)); const [x,y]=spiralPos(s,pk); if(ppx!==null) seg(stx,ppx,ppy,x,y,s.w,s.col,.85); ppx=x; ppy=y; s.x=x; s.y=y; } s.px=ppx; s.py=ppy; head(s,.9); }
-        } else if(t<t2){
-          if(hole) hole.style.opacity='0'; const q=(t-t1)/T.collide; const rad=10+q*q*90; const g=stx.createRadialGradient(cx,cy,0,cx,cy,rad); g.addColorStop(0,'rgba(255,255,255,'+(.55+.4*q)+')'); g.addColorStop(.4,'rgba(255,214,102,'+(.35*q+.1)+')'); g.addColorStop(1,'rgba(255,214,102,0)'); stx.fillStyle=g; stx.fillRect(cx-rad,cy-rad,rad*2,rad*2);
-          for(const s of stars){ s.x=cx; s.y=cy; s.px=cx; s.py=cy; }
+        if(!scanned){ if(this.scanStep(4.5)||t>t1-120){ scanned=true; try{ paths=this.scanFinish(); }catch(e){ paths=[]; } } }
+        stx.clearRect(0,0,W,H); stx.globalCompositeOperation='lighter';
+        if(t<t2){
+          const tp=Math.min(1,t/t1);
+          if(hole) hole.style.opacity=String(Math.max(0,1-Math.pow(Math.max(0,(tp-.3)/.7),1.5)));
+          if(tp>.5){ glow(cx,cy,30+110*Math.pow((tp-.5)*2,2),'255,200,120',.22*Math.pow((tp-.5)*2,1.5)); }
+          for(const s of S7){ const dur=1-.14, p=Math.max(0,Math.min(1,(tp-s.delay)/dur)); if(p<=0) continue; const pp=Math.max(0,Math.min(1,(Math.min(1,prevT/t1)-s.delay)/dur)); const sub=4+Math.ceil(6*p); for(let k=1;k<=sub;k++){ const pk=pp+(p-pp)*k/sub; const [x,y]=pos7(s,pk); s.hist.push({x,y,t:now-(sub-k)*(16/sub)}); s.x=x; s.y=y; }
+            drawTail(s,now,230+430*p*p,1+.9*p,1);
+            if(R()<.9&&sparks.length<150){ sparks.push({x:s.x,y:s.y,vx:(R()-.5)*160,vy:(R()-.5)*160,t:now,life:260+R()*260,col:s.col}); }
+            const hr=12+16*p; glow(s.x,s.y,hr,s.col,.55); glow(s.x,s.y,hr*.45,'255,255,255',.7); flare(s.x,s.y,16+34*p,now*.004*s.dir,.55+.3*p); stx.fillStyle='rgba(255,255,255,1)'; stx.beginPath(); stx.arc(s.x,s.y,2+1.8*p,0,6.283); stx.fill(); }
+          for(let i=sparks.length-1;i>=0;i--){ const q=sparks[i], a=1-(now-q.t)/q.life; if(a<=0){ sparks.splice(i,1); continue; } const dt=(now-q.t)/1000; stx.fillStyle='rgba('+q.col+','+(a*.8)+')'; stx.beginPath(); stx.arc(q.x+q.vx*dt,q.y+q.vy*dt,1.2+a*1.2,0,6.283); stx.fill(); }
         } else if(t<t3){
-          if(!burstSet){ burstSet=true; for(const s of stars){ s.px=cx; s.py=cy; } }
-          const q=(t-t2)/T.burst, d=1-Math.pow(1-q,3); const ringR=d*mx*.62; stx.strokeStyle='rgba(255,226,150,'+(.32*(1-q))+')'; stx.lineWidth=2*(1-q)+.5; stx.beginPath(); stx.arc(cx,cy,ringR,0,6.283); stx.stroke();
-          for(const s of stars){ const x=cx+Math.cos(s.ba)*s.bR*d, y=cy+Math.sin(s.ba)*s.bR*d; seg(stx,s.px,s.py,x,y,s.w*1.1,s.col,.9); s.px=x; s.py=y; s.x=x; s.y=y; head(s,1); }
+          if(hole) hole.style.opacity='0';
+          if(!burstMade){ burstMade=true; try{ plans=this.plan(paths,30,cx,cy); }catch(e){ plans=[]; } const nn=Math.max(1,plans.length); tr=plans.map((pl,i)=>({plan:pl,col:this.COLT[(R()*this.COLT.length)|0],w:1.3+R()*1.1,ba:i/nn*6.283+R()*.4,bR:mn*(.16+R()*.4),hist:[],x:cx,y:cy,bx:cx,by:cy,sgn:R()<.5?1:-1,ld:0})); S7.forEach(s=>s.hist.length=0); }
+          if(t<t2){ const q=(t-t1)/T.collide; glow(cx,cy,40+150*q*q,'255,255,255',.5+.5*q); glow(cx,cy,24+60*q,'255,214,102',.7*q); }
+          else { const q=(t-t2)/T.burst, d=1-Math.pow(1-q,3); glow(cx,cy,Math.max(1,150*(1-q)),'255,235,190',.6*(1-q)); stx.strokeStyle='rgba(255,226,150,'+(.55*(1-q))+')'; stx.lineWidth=2.2*(1-q)+.4; stx.beginPath(); stx.arc(cx,cy,d*mx*.6,0,6.283); stx.stroke();
+            for(const s of tr){ s.x=cx+Math.cos(s.ba)*s.bR*d; s.y=cy+Math.sin(s.ba)*s.bR*d; s.hist.push({x:s.x,y:s.y,t:now}); drawTail(s,now,170,1,1); glow(s.x,s.y,9,'255,236,190',.5); stx.fillStyle='#fff'; stx.beginPath(); stx.arc(s.x,s.y,1.6,0,6.283); stx.fill(); } }
         } else if(t<t4){
-          if(!curveSet){ curveSet=true; for(const s of stars){ s.bx=s.x; s.by=s.y; const p=s.path, a=this.at(p,s.off*p.len); s.sx=a[0]; s.sy=a[1]; s.tx=a[0]; s.ty=a[1]; } }
-          const u=sm((t-t3)/T.curve); for(const s of stars){ const dx=s.sx-s.bx, dy=s.sy-s.by, dd=Math.hypot(dx,dy)||1; const mx_=(s.bx+s.sx)/2-dy/dd*dd*.35*s.sgn, my_=(s.by+s.sy)/2+dx/dd*dd*.35*s.sgn; const x=(1-u)*(1-u)*s.bx+2*(1-u)*u*mx_+u*u*s.sx, y=(1-u)*(1-u)*s.by+2*(1-u)*u*my_+u*u*s.sy; seg(stx,s.px,s.py,x,y,s.w,s.col,.85); s.px=x; s.py=y; s.x=x; s.y=y; head(s,1); }
+          if(!curveSet){ curveSet=true; for(const s of tr){ s.bx=s.x; s.by=s.y; const f=s.plan.first; s.sx=f[0]; s.sy=f[1]; } }
+          const u=sm((t-t3)/T.curve); for(const s of tr){ const dx=s.sx-s.bx, dy=s.sy-s.by, dd=Math.hypot(dx,dy)||1; const mx_=(s.bx+s.sx)/2-dy/dd*dd*.3*s.sgn, my_=(s.by+s.sy)/2+dx/dd*dd*.3*s.sgn; s.x=(1-u)*(1-u)*s.bx+2*(1-u)*u*mx_+u*u*s.sx; s.y=(1-u)*(1-u)*s.by+2*(1-u)*u*my_+u*u*s.sy; s.hist.push({x:s.x,y:s.y,t:now}); drawTail(s,now,170,1,1); glow(s.x,s.y,9,'255,236,190',.5); stx.fillStyle='#fff'; stx.beginPath(); stx.arc(s.x,s.y,1.6,0,6.283); stx.fill(); }
         } else if(t<t5){
-          const u=ease((t-t4)/T.trace); for(const s of stars){ const p=s.path; const pos=p.closed?((s.off*p.len+u*p.len)%p.len):u*p.len; const a=this.at(p,pos); const x=a[0], y=a[1]; if(s.tx!==null&&u>0){ seg(skx,s.tx,s.ty,x,y,3.6,s.col,.10); seg(skx,s.tx,s.ty,x,y,1.3,'255,236,200',.9); } seg(stx,s.px,s.py,x,y,s.w,s.col,.7); s.px=x; s.py=y; s.tx=x; s.ty=y; s.x=x; s.y=y; head(s,1); }
+          const u=ease((t-t4)/T.trace); skx.lineJoin='round'; skx.lineCap='round';
+          for(const s of tr){ const d1=s.plan.total*u, d0=s.ld; for(const g of s.plan.segs){ if(g.hop||g.end<d0||g.start>d1) continue; const a0=Math.max(d0,g.start)-g.start, a1=Math.min(d1,g.end)-g.start; if(a1<=a0) continue; const n=Math.max(1,Math.ceil((a1-a0)/5)); let pa=this.at(g.p,a0); for(let k=1;k<=n;k++){ const pb=this.at(g.p,a0+(a1-a0)*k/n); skx.strokeStyle='rgba(255,226,170,.12)'; skx.lineWidth=3.8; skx.beginPath(); skx.moveTo(pa[0],pa[1]); skx.lineTo(pb[0],pb[1]); skx.stroke(); skx.strokeStyle='rgba(255,244,222,.95)'; skx.lineWidth=1.25; skx.beginPath(); skx.moveTo(pa[0],pa[1]); skx.lineTo(pb[0],pb[1]); skx.stroke(); pa=pb; } }
+            s.ld=d1; const p=this.posAt(s.plan,d1); s.x=p[0]; s.y=p[1]; s.hist.push({x:s.x,y:s.y,t:now}); drawTail(s,now,150,1,1); glow(s.x,s.y,10,'255,236,190',.55); stx.fillStyle='#fff'; stx.beginPath(); stx.arc(s.x,s.y,1.7,0,6.283); stx.fill(); }
+        } else {
+          if(!pulsed){ pulsed=true; skx.lineJoin='round'; for(const pl of (plans||[])) for(const g of pl.segs){ if(g.hop) continue; skx.strokeStyle='rgba(255,226,170,.30)'; skx.lineWidth=4.5; skx.beginPath(); g.p.pts.forEach((q,i)=>i?skx.lineTo(q[0],q[1]):skx.moveTo(q[0],q[1])); skx.stroke(); skx.strokeStyle='rgba(255,246,230,1)'; skx.lineWidth=1.4; skx.beginPath(); g.p.pts.forEach((q,i)=>i?skx.lineTo(q[0],q[1]):skx.moveTo(q[0],q[1])); skx.stroke(); } }
+          const q=Math.min(1,(t-t5)/T.pulse); for(const s of tr){ s.hist.length=0; glow(s.x,s.y,10*(1-q),'255,236,190',.5*(1-q)); }
+          if(!revealed&&t>=t6){ revealed=true; reveal(); }
         }
-        prevT=t;
-        if(t>=t5){ if(!flashed){ flashed=true; doFlash(); } return; }
-        requestAnimationFrame(frame);
+        prevT=t; if(!revealed) requestAnimationFrame(frame);
       };
       requestAnimationFrame(frame);
     });
@@ -4687,7 +4733,7 @@ const Boot = {
     };
     BootHole.onReveal = ()=>{
       seq.classList.add('hidden'); brandStage.classList.remove('show');
-      if(!openOnboarding){ canvasEl.style.transition='none'; canvasEl.classList.remove('show'); }
+      if(!openOnboarding){ canvasEl.style.transition='opacity .7s ease'; canvasEl.classList.remove('show'); }
     };
     const holeP = this.reduced ? Promise.resolve() : BootHole.trigger(originX, originY);
     await d(350);
@@ -15516,7 +15562,7 @@ Object.assign(Aki,{
 const PATCH_NOTES = [
   {ver:'4.12', label:'Epic Boot', items:[
     '🎬 New intro order: lightning, then the BLITZ morph, then the Flambounds collision, then the black hole.',
-    '⭐ Triple-tap the black hole: comet-stars rush in from every side, spiral faster and faster, crash in the middle, burst out, then trace the whole Blitz screen in about 1.5 seconds. A white flash and the sketch becomes the real screen. (No more radiation rays.)',
+    '⭐ Triple-tap the black hole: seven hero comets spiral in faster and faster, crash in the middle and burst into 30 stars that sketch the whole Blitz screen in 2 seconds (read live from your real layout). Then the real screen fades in. No more radiation rays.',
     '⚡ Black hole is lighter on the phone: fewer calculation steps, and it lowers its own resolution if the phone struggles.'
   ]},
   {ver:'4.11', label:'Aki Learns', items:[
