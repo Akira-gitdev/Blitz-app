@@ -2744,14 +2744,14 @@ html[data-theme="dark"] .sbm-in{background:rgba(255,255,255,.08);}
             <label style="margin:0;" for="cfgBootStyle">Intro style</label>
             <div class="hint" style="margin-top:2px;">Surprise me picks one each time. Black hole: lightning, logos, black hole, then the star finale. Lightning storm: a thunderstorm that powers on your screen.</div>
           </div>
-          <select id="cfgBootStyle"><option value="random">Surprise me</option><option value="hole">Black hole</option><option value="storm">Chidori storm</option><option value="warp">Warp jump</option><option value="nova">Supernova</option><option value="glitch">Glitch</option><option value="matrix">Matrix rain</option><option value="neon">Neon sign</option></select>
+          <select id="cfgBootStyle"><option value="random">Surprise me</option><option value="hole">Black hole</option><option value="storm">Chidori storm</option><option value="warp">Warp jump</option><option value="nova">Supernova</option><option value="glitch">Glitch</option><option value="matrix">Matrix rain</option><option value="neon">Neon sign</option><option value="rift">Dimension rift</option><option value="inferno">Inferno</option><option value="holo">Hologram scan</option></select>
         </div>
         <div class="row-between field">
           <div>
             <label style="margin:0;" for="cfgRebootStyle">Reboot style</label>
             <div class="hint" style="margin-top:2px;">What plays when you press the Reboot button. Surprise me uses its own set (Glitch, Matrix, Neon), different from the normal start-up set (Black hole, Chidori, Warp, Supernova).</div>
           </div>
-          <select id="cfgRebootStyle"><option value="random">Surprise me</option><option value="hole">Black hole</option><option value="storm">Chidori storm</option><option value="warp">Warp jump</option><option value="nova">Supernova</option><option value="glitch">Glitch</option><option value="matrix">Matrix rain</option><option value="neon">Neon sign</option></select>
+          <select id="cfgRebootStyle"><option value="random">Surprise me</option><option value="hole">Black hole</option><option value="storm">Chidori storm</option><option value="warp">Warp jump</option><option value="nova">Supernova</option><option value="glitch">Glitch</option><option value="matrix">Matrix rain</option><option value="neon">Neon sign</option><option value="rift">Dimension rift</option><option value="inferno">Inferno</option><option value="holo">Hologram scan</option></select>
         </div>
         <div class="row-between field">
           <div>
@@ -3023,7 +3023,7 @@ html[data-theme="dark"] .sbm-in{background:rgba(255,255,255,.08);}
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '4.14', label: 'Boot Lab' };
+const BLITZ_VERSION = { number: '4.15', label: 'Boot Lab 2' };
 
 const Utils = {
   uid(prefix){
@@ -3635,7 +3635,10 @@ const BootFX = {
     nova:{open:1400, bg:'14,4,2', order:'r', col:'255,200,120'},
     glitch:{open:1200, bg:'2,2,8', order:'rnd', col:'0,255,240'},
     matrix:{open:1500, bg:'0,10,3', order:'y', col:'90,255,140'},
-    neon:{open:1000, bg:'8,2,14', order:'sec', col:'255,70,200'}
+    neon:{open:1000, bg:'8,2,14', order:'sec', col:'255,70,200'},
+    rift:{open:1500, bg:'6,3,18', order:'rx', col:'210,180,255'},
+    holo:{open:1400, bg:'0,8,14', order:'y', col:'90,240,255'},
+    inferno:{open:1600, bg:'14,3,0', order:'yi', col:'255,160,70'}
   },
   run(kind,o){
     o=o||{}; const K=this.K[kind]||this.K.warp;
@@ -3656,7 +3659,7 @@ const BootFX = {
       const parts=[]; const cols=[]; const CH='01ｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄ<>/+*'; const cw=16; if(kind==='matrix'){ for(let i=0;i<Math.ceil(W/cw);i++) cols.push({y:-R()*H,v:.35+R()*.7,l:8+((R()*14)|0)}); }
       const rings=[]; let flash=-999;
       const order=(p)=>{ const bb=BootFinale.bbox(p), mx=(bb[0]+bb[2])/2, my=(bb[1]+bb[3])/2;
-        if(K.order==='y') return my/H; if(K.order==='r') return Math.hypot(mx-cx,my-cy)/(Math.hypot(cx,cy)+1);
+        if(K.order==='y') return my/H; if(K.order==='yi') return 1-my/H; if(K.order==='rx') return Math.min(1,Math.abs(mx-cx)/cx*.8+Math.abs(my-cy)/H*.4); if(K.order==='r') return Math.hypot(mx-cx,my-cy)/(Math.hypot(cx,cy)+1);
         if(K.order==='sec') return Math.min(1,Math.floor(my/(H/6))/6+R()*.12); return R(); };
       const t0=performance.now();
       const drawPaths=(t)=>{ ctx.lineJoin='round'; ctx.lineCap='round';
@@ -3707,6 +3710,34 @@ const BootFX = {
           ctx.globalCompositeOperation='lighter'; const bz=t<OP?q:1; if(R()<.4*(1-q)+.04){ const y=R()*H; ctx.fillStyle='rgba(255,70,200,.07)'; ctx.fillRect(0,y,W,2); }
           const g=ctx.createRadialGradient(cx,cy,0,cx,cy,mn*.8); g.addColorStop(0,'rgba(255,60,190,'+.1*bz+')'); g.addColorStop(1,'rgba(40,200,255,0)'); ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
           if(t<OP&&R()<.5){ const x=R()*W; ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x,cy-8); ctx.lineTo(x+(R()-.5)*40,cy+8); ctx.stroke(); sfx('strike'); }
+          ctx.globalCompositeOperation='source-over';
+        } else if(kind==='rift'){
+          ctx.globalCompositeOperation='lighter'; const hw=Math.pow(Math.min(1,t/OP),2.2)*W*.62+3, fa=t<OP?1:Math.max(0,1-(t-OP)/650);
+          if(fa>0){ const g=ctx.createLinearGradient(cx-hw,0,cx+hw,0); g.addColorStop(0,'rgba(140,90,255,0)'); g.addColorStop(.35,'rgba(190,150,255,'+.45*fa+')'); g.addColorStop(.5,'rgba(255,255,255,'+fa+')'); g.addColorStop(.65,'rgba(190,150,255,'+.45*fa+')'); g.addColorStop(1,'rgba(140,90,255,0)'); ctx.fillStyle=g; ctx.fillRect(cx-hw,0,hw*2,H);
+            const pts=[]; for(let y=-10;y<=H+10;y+=H/26) pts.push([cx+(R()-.5)*Math.min(26,6+hw*.15),y]); ctx.lineJoin='round'; ctx.strokeStyle='rgba(200,170,255,'+.5*fa+')'; ctx.lineWidth=9; ctx.beginPath(); pts.forEach((q2,i)=>i?ctx.lineTo(q2[0],q2[1]):ctx.moveTo(q2[0],q2[1])); ctx.stroke(); ctx.strokeStyle='rgba(255,255,255,'+fa+')'; ctx.lineWidth=2; ctx.stroke();
+            for(let i=0;i<10;i++){ const y=R()*H, L=hw*(.6+R()*1.4), sd=R()<.5?-1:1, sg=[]; this.bolt?0:0; ctx.strokeStyle='rgba(220,200,255,'+.35*fa+')'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(cx,y); ctx.lineTo(cx+sd*L,y+(R()-.5)*L*.4); ctx.stroke(); }
+            for(let i=0;i<6;i++){ const a=R()*6.283; parts.push({x:cx,y:R()*H,vx:Math.cos(a)*(2+R()*8),vy:(R()-.5)*3,l:600+R()*600,b:now}); } }
+          for(let i=parts.length-1;i>=0;i--){ const p=parts[i], age=now-p.b; if(age>p.l){ parts.splice(i,1); continue; } p.x+=p.vx; p.y+=p.vy; const al=1-age/p.l; ctx.fillStyle='rgba(230,210,255,'+al+')'; ctx.fillRect(p.x-1,p.y-1,2,2); }
+          if(t>OP*.5&&!this._r){ this._r=1; sfx('rumble'); } if(!boomed&&t>=OP){ boomed=true; sfx('boom'); }
+          ctx.globalCompositeOperation='source-over';
+        } else if(kind==='holo'){
+          ctx.globalCompositeOperation='lighter'; const fa=t<OP?1:Math.max(0,1-(t-OP)/700), hz=H*.62;
+          ctx.strokeStyle='rgba(60,220,255,'+.35*fa+')'; ctx.lineWidth=1; const off=(now*.04)%40;
+          for(let i=0;i<14;i++){ const f=Math.pow((i*40+off)/560,1.8); const y=hz+f*(H-hz); ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+          for(let i=-12;i<=12;i++){ ctx.beginPath(); ctx.moveTo(cx+i*8,hz); ctx.lineTo(cx+i*mn*.16,H); ctx.stroke(); }
+          for(let k=0;k<3;k++){ const rr=mn*(.16+k*.1)*(.4+q*.6), ra=now*.0016*(k%2?-1:1)+k; ctx.strokeStyle='rgba(120,240,255,'+(.7-.15*k)*fa+')'; ctx.lineWidth=2; ctx.beginPath(); ctx.ellipse(cx,cy*.78,rr,rr*.34,ra*.2,ra,ra+4.3); ctx.stroke(); }
+          const sy=Math.min(1,t/OP)*H; const g=ctx.createLinearGradient(0,sy-90,0,sy); g.addColorStop(0,'rgba(80,230,255,0)'); g.addColorStop(1,'rgba(150,250,255,'+.4*fa+')'); ctx.fillStyle=g; ctx.fillRect(0,sy-90,W,90); ctx.fillStyle='rgba(230,255,255,'+fa+')'; ctx.fillRect(0,sy-1,W,2.5);
+          if(t<OP){ ctx.save(); ctx.textAlign='center'; ctx.font='800 '+Math.round(mn*.13)+'px sans-serif'; const fl=R()<.15?.3:1; ctx.fillStyle='rgba(120,245,255,'+.8*fl*Math.min(1,q*3)+')'; ctx.fillText('BLITZ',cx,cy*.8+(R()<.1?(R()-.5)*8:0)); ctx.restore(); }
+          for(let i=0;i<30*fa;i++){ ctx.fillStyle='rgba(150,250,255,'+R()*.35+')'; ctx.fillRect(R()*W,R()*H,1,1+R()*5); }
+          if(!this._r&&t>200){ this._r=1; sfx('rumble'); } if(!boomed&&t>=OP){ boomed=true; sfx('boom'); }
+          ctx.globalCompositeOperation='source-over';
+        } else if(kind==='inferno'){
+          ctx.globalCompositeOperation='lighter'; const hs=t<OP?(.15+Math.pow(q,1.4)*.85):Math.max(0,1-(t-OP)/800);
+          for(let x=-20;x<W+30;x+=9){ const n=Math.sin(x*.012+now*.006)+Math.sin(x*.03-now*.011)*.8+Math.sin(x*.08+now*.02)*.35; const h=H*1.05*hs*(.5+.2*n+.1*Math.sin(x*.01)); if(h<4) continue;
+            const g=ctx.createLinearGradient(0,H,0,H-h); g.addColorStop(0,'rgba(255,235,160,.5)'); g.addColorStop(.3,'rgba(255,125,30,.34)'); g.addColorStop(1,'rgba(200,30,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(x-26,H); ctx.quadraticCurveTo(x-8+n*10,H-h*.55,x+n*18,H-h); ctx.quadraticCurveTo(x+14,H-h*.5,x+30,H); ctx.fill(); }
+          if(hs>.1) for(let i=0;i<5;i++) parts.push({x:R()*W,y:H,vx:(R()-.5)*1.4,vy:-(1.5+R()*4),l:900+R()*900,b:now});
+          for(let i=parts.length-1;i>=0;i--){ const p=parts[i], age=now-p.b; if(age>p.l){ parts.splice(i,1); continue; } p.x+=p.vx+Math.sin(age*.01+i)*.6; p.y+=p.vy; const al=1-age/p.l; ctx.fillStyle='rgba(255,'+(120+100*al|0)+',40,'+al+')'; ctx.fillRect(p.x-1,p.y-1,2.2,2.2); }
+          if(t>OP*.4&&!this._r){ this._r=1; sfx('rumble'); } if(!boomed&&t>=OP){ boomed=true; sfx('boom'); }
           ctx.globalCompositeOperation='source-over';
         }
         if(t>=cc){ ctx.globalCompositeOperation='lighter'; drawPaths(t); ctx.globalCompositeOperation='source-over';
@@ -4987,7 +5018,7 @@ const Boot = {
   },
 
   pickStyle(reboot){
-    const ALL=['hole','storm','warp','nova','glitch','matrix','neon'], LAUNCH=['hole','storm','warp','nova'], REB=['glitch','matrix','neon'];
+    const ALL=['hole','storm','warp','nova','rift','inferno','glitch','matrix','neon','holo'], LAUNCH=['hole','storm','warp','nova','rift','inferno'], REB=['glitch','matrix','neon','holo'];
     const st = (reboot ? Config.state.rebootStyle : Config.state.bootStyle) || 'random';
     if(ALL.indexOf(st)>=0) return st;
     const pool = reboot ? REB : LAUNCH; let k = pool[(Math.random()*pool.length)|0];
@@ -7136,7 +7167,7 @@ const Manager = {
     await Context.logTurn('user', Guard.hasSecret(rawText) ? '[a secret key was pasted here and removed]' : rawText);
     if(_gd){ await Context.logTurn('ai', _gd.text, {local:true, guard:_gd.cat}); return {type:'reply', text:_gd.text, local:true, guardCat:_gd.cat}; }
     if(!userText) return {type:'noop'};
-    try{ Nudge.replied(); SOUL.touch(); }catch(e){}
+    try{ Nudge._spoke=true; Nudge.replied(); SOUL.touch(); }catch(e){}
     const _sr = SOUL.route(userText); if(_sr){ await Context.logTurn('ai', _sr.text, {local:true}); return _sr; }
     const _ak = await Aki.tryLocal(userText); if(_ak){ await Context.logTurn('ai', _ak.text, {local:true}); return _ak; }
     try{ SOUL.takeAnswer(userText); if(SOUL.fromText(userText)) UI.toast('Added to your SOUL ✨'); }catch(e){}
@@ -15162,6 +15193,7 @@ const Nudge = {
   },
   run(){
     try{
+      if(!this._spoke) return false; /* v4.15: never open an empty chat with a greeting */
       if(!this.can()) return false; const n=SOUL.st().nudge; if(n.last&&!n.answered&&n.last>0&&n.lastSent) { n.ignored=Math.min(4,n.ignored+1); n.lastSent=false; }
       const p=this.pick(); if(!p) return false;
       n.sent++; n.last=Date.now(); n.answered=false; n.lastSent=true; n.byTopic[p.topic]=Date.now(); SOUL.save();
@@ -15177,7 +15209,7 @@ const Nudge = {
     }catch(e){ return false; }
   },
   replied(){ const n=SOUL.st().nudge; if(n.lastSent&&Date.now()-n.last<20*60000){ n.answered=true; n.ignored=0; n.lastSent=false; } },
-  start(){ setTimeout(()=>this.run(),9000); setInterval(()=>{ if(!document.hidden) this.run(); },10*60000); }
+  start(){ setInterval(()=>{ if(!document.hidden) this.run(); },10*60000); }
 };
 
 /* ---- Developer mode: the owner's deeper controls (PIN) ---- */
@@ -15812,6 +15844,10 @@ Object.assign(Aki,{
 });
 
 const PATCH_NOTES = [
+  {ver:'4.15', label:'Boot Lab 2', items:[
+    'Blitz no longer greets you on start-up: every launch opens a clean empty chat, and nudges only appear after you have chatted.',
+    'Three new boot animations: Dimension rift, Inferno (normal start-up) and Hologram scan (reboot).'
+  ]},
   {ver:'4.14', label:'Boot Lab', items:[
     'Five new boot animations: Warp jump, Supernova (normal start-up) and Glitch, Matrix rain, Neon sign (reboot).',
     'Reboot button now has its own animation set and its own Settings choice, different from normal start-up.',
