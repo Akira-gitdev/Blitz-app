@@ -3028,7 +3028,7 @@ html[data-theme="dark"] .sbm-in{background:rgba(255,255,255,.08);}
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '4.21', label: 'Aki Remembers' };
+const BLITZ_VERSION = { number: '6.0', label: 'Model 6.0' };
 
 const Utils = {
   uid(prefix){
@@ -6701,6 +6701,7 @@ const CloudBrains = {
     mistral:{label:'Mistral',base:'https://api.mistral.ai/v1',model:'mistral-small-latest',alt:'open-mistral-nemo',site:'console.mistral.ai'}
   },
   ORDER:['groq','gemini','openrouter','cerebras','mistral','local'], _p:{},
+  clean(k){ return String(k||'').replace(/^\s*bearer\s+/i,'').replace(/[\s"'`\u200b-\u200f\u2028\u2029\ufeff]/g,'').replace(/[^\x21-\x7e]/g,''); },
   cfg(){ const c=Config.state; if(!c.brains) c.brains={order:this.ORDER.slice(),keys:{},models:{}}; const b=c.brains; b.keys=b.keys||{}; b.models=b.models||{}; if(!b.order||!b.order.length) b.order=this.ORDER.slice(); return b; },
   anyKey(){ const k=this.cfg().keys; return Object.keys(this.DEF).some(id=>k[id]&&String(k[id]).trim()); },
   model(id){ return (this.cfg().models[id]||'').trim()||this.DEF[id].model; },
@@ -6711,11 +6712,11 @@ const CloudBrains = {
         (contents||[]).forEach(c=>{ const t=(c.parts||[]).map(p=>p.text||'').join(''); if(t) messages.push({role:c.role==='model'?'assistant':'user',content:t}); });
         const models=[self.model(id)]; if(D.alt&&D.alt!==models[0]) models.push(D.alt); let last=null;
         for(const m of models){ let res;
-          try{ res=await fetch(D.base+'/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+self.cfg().keys[id].trim()},body:JSON.stringify({model:m,messages,temperature,max_tokens:Math.min(maxOutputTokens,1500)})}); }
+          try{ res=await fetch(D.base+'/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+self.clean(self.cfg().keys[id])},body:JSON.stringify({model:m,messages,temperature,max_tokens:Math.min(maxOutputTokens,1500)})}); }
           catch(e){ return {ok:false,errorType:'network',message:D.label+' could not be reached (offline, or the phone blocked the request).'}; }
           if(res.ok){ let j=null; try{ j=await res.json(); }catch(e){} const ch=j&&j.choices&&j.choices[0]; const text=ch&&ch.message&&(ch.message.content||'').trim(); if(text) return {ok:true,text,raw:{done_reason:ch.finish_reason==='length'?'length':'stop'},model:m}; last={ok:false,errorType:'empty',message:D.label+' sent an empty answer.'}; continue; }
           const st=res.status; let det=''; try{ const j=await res.json(); det=(j.error&&(j.error.message||j.error))||''; }catch(e){}
-          last={ok:false,errorType:st===429?'rate_limit':(st===401||st===403?'bad_key':'api_error'),status:st,message:D.label+' said '+st+(det?(': '+String(det).slice(0,120)):'')+'.'};
+          last={ok:false,errorType:st===429?'rate_limit':(st===401||st===403?'bad_key':'api_error'),status:st,message:D.label+' said '+st+(det?(': '+String(det).slice(0,120)):'')+'.'+((st===401||st===403)?' Check: the key is pasted in the '+D.label+' box (not another box), it is the whole key, and it was made at '+D.site+'.':'')};
           if(st===401||st===403) return last; }
         return last||{ok:false,errorType:'api_error',message:D.label+' failed.'}; } }; },
   order(){ const out=[]; this.cfg().order.forEach(id=>{ if(id==='gemini') out.push(GeminiProvider); else if(id==='local'){ out.push(LocalLLMProvider); out.push(DeviceBrain); } else if(this.DEF[id]) out.push(this.get(id)); }); return out; },
@@ -6723,10 +6724,13 @@ const CloudBrains = {
   render(mount){ if(!mount) return; mount.innerHTML=''; const H=(t,c,x)=>{ const e=document.createElement(t); if(c) e.className=c; if(x!=null) e.textContent=x; return e; };
     mount.appendChild(H('div','section-label','Free backup brains (recommended)'));
     mount.appendChild(H('div','hint','Add one or more free keys. Blitz tries them in this order and quietly moves to the next if one is busy: Groq → Gemini → OpenRouter → Cerebras → Mistral → local AI. Keys stay on this phone.'));
+    { const pr=H('div','field'); pr.appendChild(H('div','section-label','Priority line: which brain goes first')); const NM={groq:'Groq',gemini:'Gemini',openrouter:'OpenRouter',cerebras:'Cerebras',mistral:'Mistral',local:'Offline (local / on-phone)'}; const o=this.cfg().order; ['groq','gemini','openrouter','cerebras','mistral','local'].forEach(id=>{ if(o.indexOf(id)<0) o.push(id); });
+      o.forEach((id,i)=>{ if(!NM[id]) return; const r=H('div','row-between field'); r.appendChild(H('div','',(i+1)+'. '+NM[id]+(id==='local'?'':(id==='gemini'?(GeminiProvider.isConfigured()?'':'  (no key)'):((this.cfg().keys[id]||'').trim()?'':'  (no key)'))))); const bs=H('span'); const up=H('button','btn sm','▲'), dn=H('button','btn sm','▼'); up.type=dn.type='button'; up.disabled=i===0; dn.disabled=i===o.length-1; const mv=d=>{ const j=i+d; if(j<0||j>=o.length) return; const t=o[i]; o[i]=o[j]; o[j]=t; Config.save(); this.render(mount); }; up.onclick=()=>mv(-1); dn.onclick=()=>mv(1); bs.appendChild(up); bs.appendChild(dn); r.appendChild(bs); pr.appendChild(r); });
+      pr.appendChild(H('div','hint','Blitz tries the top one first and moves down only if it fails or is busy. Brains with no key are skipped.')); mount.appendChild(pr); }
     Object.keys(this.DEF).forEach(id=>{ const D=this.DEF[id], card=H('div','field'); card.appendChild(H('div','',D.label+'  ·  get a free key at '+D.site));
-      const k=H('input'); k.type='password'; k.placeholder='paste '+D.label+' key'; k.value=this.cfg().keys[id]||''; k.autocomplete='off'; k.onchange=()=>{ this.cfg().keys[id]=k.value.trim(); Config.save(); }; card.appendChild(k);
+      const k=H('input'); k.type='password'; k.placeholder='paste '+D.label+' key'; k.value=this.cfg().keys[id]||''; k.autocomplete='off'; k.onchange=()=>{ this.cfg().keys[id]=this.clean(k.value); k.value=this.cfg().keys[id]; Config.save(); }; card.appendChild(k);
       const m=H('input'); m.type='text'; m.placeholder=D.model; m.value=this.cfg().models[id]||''; m.onchange=()=>{ this.cfg().models[id]=m.value.trim(); Config.save(); }; card.appendChild(m);
-      const row=H('div','aki-acts'); const t=H('button','btn sm','Test'); t.type='button'; const out=H('span','hint',''); t.onclick=async()=>{ this.cfg().keys[id]=k.value.trim(); Config.save(); out.textContent=' testing…'; const r=await this.get(id).generate({contents:[{role:'user',parts:[{text:'Say hi in three words.'}]}],systemInstructionText:'Be brief.',maxOutputTokens:20}); out.textContent=r.ok?' ✅ works: “'+r.text.slice(0,40)+'”':' ❌ '+r.message+(r.errorType==='network'?' (If you are sure you are online, this provider may block phone apps. Tell me and I will add a workaround.)':''); }; row.appendChild(t); row.appendChild(out); card.appendChild(row); mount.appendChild(card); }); }
+      const row=H('div','aki-acts'); const t=H('button','btn sm','Test'); t.type='button'; const out=H('span','hint',''); t.onclick=async()=>{ this.cfg().keys[id]=this.clean(k.value); k.value=this.cfg().keys[id]; Config.save(); out.textContent=' testing…'; const r=await this.get(id).generate({contents:[{role:'user',parts:[{text:'Say hi in three words.'}]}],systemInstructionText:'Be brief.',maxOutputTokens:20}); out.textContent=r.ok?' ✅ works: “'+r.text.slice(0,40)+'”':' ❌ '+r.message+(r.errorType==='network'?' (If you are sure you are online, this provider may block phone apps. Tell me and I will add a workaround.)':''); }; row.appendChild(t); row.appendChild(out); card.appendChild(row); mount.appendChild(card); }); }
 };
 
 
@@ -14457,7 +14461,7 @@ const Actions = {
     if(m && /(start|begin|turn on|enable|set|do|go into|put me in|mode|timer|session|\d)/.test(low)){ const mins=Focus.start(m[1]||25); return {text:'🎯 Focus mode on for '+mins+' minutes. YouTube, Instagram, Reddit and other distractions are blocked inside Blitz until the timer ends. Say “stop focus” to end it.',tool:'focus'}; }
     if(/^(?:cancel|stop|turn off)\s+(?:the\s+)?sleep timer$/.test(low)){ Fun.cancelSleep(); return {text:'Sleep timer cancelled.',tool:'sleep'}; }
     m=low.match(/^(?:set\s+)?(?:a\s+)?sleep timer(?:\s+(?:for\s+)?(\d{1,3})\s*(?:m|min|mins|minutes?)?)?$/);
-    if(m){ const mins=+m[1]||30; Fun.sleepTimer(mins); return {text:'😴 Sleep timer set: the music will fade out in '+mins+' minutes.',tool:'sleep'}; }
+    if(m){ const mins=+m[1]||30; Fun.sleepTimer(mins); return {text:'😴 Sleep timer set: in '+mins+' minutes the music and media stop'+(Config.state.sleepExit===false?'.':' and Blitz closes.'),tool:'sleep'}; }
     if(/^(?:save|keep|bookmark|add)\s+(?:this\s+|it\s+|the\s+page\s+|this\s+page\s+)?(?:for|to)\s+(?:read\s*)?later$/.test(low) || /^read\s+(?:this\s+)?later$/.test(low)){
       if(!SB.alive||!SB.url) return {text:'Open a page in the Blitz browser first, then say it again (or tap 🔖).',tool:'later'};
       const r=Later.add(SB.url,SB.title); return {text:r==='dupe'?'That page is already saved for later.':(r?'🔖 Saved for later: '+(SB.title||SB.url):'I cannot save this page.'),tool:'later'}; }
@@ -14815,15 +14819,22 @@ const Fun = {
       +'<div class="row-between field"><div><label style="margin:0;">Falling decorations</label><div class="hint">Hearts, petals, snow and stars that drift down in some styles.</div></div><label class="switch"><input type="checkbox" id="cfgFx"><span class="track"></span><span class="knob"></span></label></div>'
       +'<div class="row-between field"><div><label style="margin:0;">Living background</label><div class="hint">The colours of the sky behind Blitz follow the time of day.</div></div><label class="switch"><input type="checkbox" id="cfgSky"><span class="track"></span><span class="knob"></span></label></div>';
     look.appendChild(d); this.fillSkins(); const sel=document.getElementById('cfgSkin'); sel.onchange=()=>{ if(!this.setSkin(sel.value)) sel.value=Config.state.skin||'default'; };
+    try{ const sd=document.createElement('div'); sd.className='field'; sd.innerHTML='<div class="section-label">😴 Sleep timer</div><div class="hint">After the time, music and videos fade out, then Blitz closes (you can turn closing off).</div>'; const row=document.createElement('div'); row.className='aki-acts'; const st=document.createElement('span'); st.className='hint'; const upd=()=>{ const m=Fun.sleepLeft(); st.textContent=m?' ⏳ '+m+' min left':' not running'; }; [15,30,45,60,90].forEach(m=>{ const b=document.createElement('button'); b.type='button'; b.className='btn sm'; b.textContent=m+' min'; b.onclick=()=>{ Fun.sleepTimer(m); upd(); }; row.appendChild(b); }); const c=document.createElement('button'); c.type='button'; c.className='btn sm'; c.textContent='Cancel'; c.onclick=()=>{ Fun.cancelSleep(); upd(); }; row.appendChild(c); row.appendChild(st); sd.appendChild(row); const ex=document.createElement('div'); ex.className='row-between field'; ex.innerHTML='<div>Close Blitz when it ends</div><label class="switch"><input type="checkbox"><span class="track"></span><span class="knob"></span></label>'; const ci=ex.querySelector('input'); ci.checked=Config.state.sleepExit!==false; ci.onchange=()=>{ Config.state.sleepExit=ci.checked; Config.save(); }; sd.appendChild(ex); upd(); look.appendChild(sd); }catch(e){ console.warn(e); }
     const sk=document.getElementById('cfgSky'); sk.checked=Config.state.sky!==false; sk.onchange=()=>this.setSky(sk.checked); const fxs=document.getElementById('cfgFx'); if(fxs){ fxs.checked=Config.state.fx!==false; fxs.onchange=()=>this.setFx(fxs.checked); } return true;
   },
   fillSkins(){ const sel=document.getElementById('cfgSkin'); if(!sel) return; sel.innerHTML=''; Object.keys(this.SKINS).forEach(k=>{ if(k==='pumpkin' && !Config.state.pumpkin) return; const o=document.createElement('option'); o.value=k; o.textContent=this.SKINS[k][0]; sel.appendChild(o); }); sel.value=Config.state.skin||'default'; },
   burst(x,y,n){ const em=['✨','⭐','💫','🌟']; for(let i=0;i<(n||8);i++){ const e=document.createElement('span'); e.className='fx-p'; e.textContent=em[i%em.length]; e.style.left=x+'px'; e.style.top=y+'px'; const a=Math.random()*Math.PI*2, r=40+Math.random()*70; e.style.setProperty('--dx',Math.round(Math.cos(a)*r)+'px'); e.style.setProperty('--dy',Math.round(Math.sin(a)*r-30)+'px'); document.body.appendChild(e); setTimeout(()=>e.remove(),1000); } },
   sleepTimer(min){
-    clearTimeout(this._st); min=Math.max(1,Math.min(240,Math.round(+min||30)));
-    this._st=setTimeout(()=>{ const v=Player.v; if(v&&!v.paused){ let k=10; const f=setInterval(()=>{ k--; try{ v.volume=Math.max(0,k/10); }catch(e){} if(k<=0){ clearInterval(f); try{ v.pause(); v.volume=1; }catch(e){} try{ Player.close(); }catch(e){} UI.toast('😴 Sleep timer: music stopped. Good night!'); } },1000); } else UI.toast('😴 Sleep timer finished'); },min*60000);
-  },
-  cancelSleep(){ clearTimeout(this._st); this._st=null; },
+    clearTimeout(this._st); min=Math.max(1,Math.min(480,Math.round(+min||30))); this._sleepAt=Date.now()+min*60000; try{ Config.state.sleepMin=min; Config.save(); }catch(e){}
+    this._st=setTimeout(()=>this.sleepNow(),min*60000); try{ UI.toast('😴 Sleep timer: '+min+' min'); }catch(e){} },
+  sleepNow(){
+    this._st=null; this._sleepAt=0; const vids=Array.from(document.querySelectorAll('audio,video')); try{ if(Player.v&&vids.indexOf(Player.v)<0) vids.push(Player.v); }catch(e){} let k=10;
+    const f=setInterval(()=>{ k--; vids.forEach(v=>{ try{ v.volume=Math.max(0,k/10); }catch(e){} }); if(k<=0){ clearInterval(f); vids.forEach(v=>{ try{ v.pause(); v.volume=1; }catch(e){} }); try{ Player.close(); }catch(e){} try{ speechSynthesis.cancel(); }catch(e){} try{ const B=Native.app()?Native.P('BlitzBrowser'):null; if(B&&B.close) B.close({}); }catch(e){}
+      if(Config.state.sleepExit===false){ try{ UI.toast('😴 Sleep timer: media stopped. Good night!'); }catch(e){} return; }
+      const ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:9999;background:#000;color:#9ab;display:flex;align-items:center;justify-content:center;font:16px system-ui;'; ov.textContent='😴 Good night. Closing Blitz…'; document.body.appendChild(ov);
+      setTimeout(()=>{ try{ const A=window.Capacitor&&Capacitor.Plugins&&Capacitor.Plugins.App; if(A&&A.exitApp){ A.exitApp(); return; } }catch(e){} try{ window.close(); }catch(e){} ov.textContent='😴 Good night. You can close the app now.'; },1800); } },1000); },
+  sleepLeft(){ return this._sleepAt?Math.max(0,Math.round((this._sleepAt-Date.now())/60000)):0; },
+  cancelSleep(){ clearTimeout(this._st); this._st=null; this._sleepAt=0; },
   surprise(){
     if(document.getElementById('pumpkinOv')) return; const c=Config.state; const first=!c.pumpkin; c.pumpkin=true; Config.save(); const pb=document.getElementById('pumpkinBtn'); if(pb) pb.remove(); this.fillSkins();
     const ov=document.createElement('div'); ov.id='pumpkinOv';
@@ -16266,6 +16277,10 @@ setTimeout(()=>{ try{ AkiHeart.boot(); }catch(e){} },14000);
 
 
 const PATCH_NOTES = [
+  {ver:'6.0', label:'Model 6.0', items:[
+    'Sleep timer now stops all music, video and voice, then closes Blitz (Settings → Appearance; can be set to not close).',
+    'Priority line: choose which AI brain goes first (Settings → Free backup brains, use the arrows).',
+    'API keys are cleaned automatically when pasted (spaces, quotes, hidden characters), and a 401 error now says what to check.']},
   {ver:'4.21', label:'Aki Remembers', items:[
     'Aki remembers things you tell him (an exam tomorrow, a trip on Friday, being stressed about something, a win) and checks in afterwards. See and delete them in Dev → Aki Heart.',
     'Emotional voice: his speaking speed and pitch follow how he feels, and change for !, ? and … in a sentence.',
