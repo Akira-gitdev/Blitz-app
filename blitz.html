@@ -2546,6 +2546,9 @@ html[data-theme="dark"] .sbm-in{background:rgba(255,255,255,.08);}
           <div class="hint">With a backup set, if the first one fails (Gemini overloaded, or the local server not running) Blitz automatically tries the other before giving up.</div>
         </div>
 
+        <div id="cloudBrainsMount"></div>
+        <div id="deviceBrainMount"></div>
+
         <div class="section-label">Setup, once, in Termux</div>
         <div class="hint">
           <code>pkg install ollama</code><br>
@@ -3025,7 +3028,7 @@ html[data-theme="dark"] .sbm-in{background:rgba(255,255,255,.08);}
 /* App version — bump this (and the label below) every time a real update
  * ships. Shown in Settings and as a small badge in the chat header, so
  * it's always visible inside the app itself, not just in the file. */
-const BLITZ_VERSION = { number: '4.17', label: 'Genesis Reborn' };
+const BLITZ_VERSION = { number: '4.21', label: 'Aki Remembers' };
 
 const Utils = {
   uid(prefix){
@@ -6652,6 +6655,82 @@ const LocalLLMProvider = {
 };
 
 /* ---------------------------------------------------------------------- *
+ * DeviceBrain (v4.21): optional offline model that runs inside the app.
+ * Needs the native BlitzLLM plugin (BlitzLLMPlugin.java + llm_patch.py in
+ * the repo). Without it this does nothing and the app behaves as before.
+ * ---------------------------------------------------------------------- */
+const DeviceBrain = {
+  name:'device_brain',
+  cfg(){ const c=Config.state; if(!c.deviceBrain) c.deviceBrain={enabled:false,ready:false,url:'',token:'',file:'',tpl:'gemma'}; return c.deviceBrain; },
+  P(){ try{ return (typeof Native!=='undefined'&&Native.app())?Native.P('BlitzLLM'):null; }catch(e){ return null; } },
+  isConfigured(){ const c=this.cfg(); return !!(c.enabled&&c.ready&&this.P()); },
+  prompt(contents,sys){ const c=this.cfg(); const turns=(contents||[]).slice(-8).map(t=>({r:t.role==='model'?'model':'user',t:(t.parts||[]).map(p=>p.text||'').join('')})).filter(x=>x.t);
+    let sysT=String(sys||'').slice(0,2600)+'\n\nYou are running offline on a phone. Keep replies short and natural (1-4 sentences) unless a real answer needs more.';
+    if(c.tpl==='plain') return sysT+'\n\n'+turns.map(x=>(x.r==='model'?'Assistant: ':'User: ')+x.t).join('\n')+'\nAssistant:';
+    let out='<start_of_turn>user\n'+sysT+'<end_of_turn>\n'; turns.forEach(x=>{ out+='<start_of_turn>'+x.r+'\n'+x.t.slice(0,1200)+'<end_of_turn>\n'; }); return out+'<start_of_turn>model\n'; },
+  async generate({contents,systemInstructionText,temperature=0.8,maxOutputTokens=512}){
+    const P=this.P(); if(!this.isConfigured()) return {ok:false,errorType:'missing_key',message:'The on-phone model is not set up.'};
+    try{ const r=await P.generate({prompt:this.prompt(contents,Guard.withRules(systemInstructionText||'')),maxTokens:Math.min(512,maxOutputTokens),temperature}); const text=String((r&&r.text)||'').replace(/<end_of_turn>.*$/s,'').trim(); if(!text) return {ok:false,errorType:'empty',message:'The on-phone model gave an empty reply.'}; return {ok:true,text,raw:{done_reason:'stop'}}; }
+    catch(e){ return {ok:false,errorType:'api_error',message:'On-phone model error: '+((e&&e.message)||e)}; } },
+  render(mount){ if(!mount) return; mount.innerHTML=''; const c=this.cfg(), P=this.P(); const H=(t,k,x)=>{ const e=document.createElement(t); if(k) e.className=k; if(x!=null) e.textContent=x; return e; };
+    mount.appendChild(H('div','section-label','On-phone brain (offline, optional)'));
+    if(!P){ mount.appendChild(H('div','hint','Not available in this build. It needs the app version that includes BlitzLLMPlugin.java and llm_patch.py (see the instructions Blitz gave you). Everything else works without it.')); return; }
+    mount.appendChild(H('div','hint','A small model that runs inside the app with no internet. Download once on Wi-Fi (about 0.5–1.5 GB). It is the last backup after your online brains, so chat still works with no signal. It is smaller and simpler than the online ones.'));
+    const st=H('div','hint',c.ready?'Status: ready ('+(c.file||'model')+')':'Status: no model yet'); mount.appendChild(st);
+    const u=H('input'); u.type='text'; u.placeholder='Model link (.task file from Hugging Face litert-community)'; u.value=c.url||''; u.onchange=()=>{ c.url=u.value.trim(); Config.save(); }; mount.appendChild(u);
+    const tk=H('input'); tk.type='password'; tk.placeholder='Hugging Face token (only if the model needs login)'; tk.value=c.token||''; tk.onchange=()=>{ c.token=tk.value.trim(); Config.save(); }; mount.appendChild(tk);
+    const row=H('div','aki-acts'); const b1=H('button','btn sm','Download and load'); b1.type='button'; const b2=H('button','btn sm','Test'); b2.type='button'; const b3=H('button','btn sm','Remove'); b3.type='button'; [b1,b2,b3].forEach(b=>row.appendChild(b)); mount.appendChild(row);
+    const sw=H('div','row-between field'); sw.appendChild(H('div','','Use as backup brain')); const l=H('label','switch'); l.innerHTML='<input type="checkbox"><span class="track"></span><span class="knob"></span>'; const i=l.querySelector('input'); i.checked=!!c.enabled; i.onchange=()=>{ c.enabled=i.checked; Config.save(); }; sw.appendChild(l); mount.appendChild(sw);
+    try{ P.addListener&&P.addListener('llmProgress',e=>{ st.textContent='Downloading… '+Math.round((e&&e.pct)||0)+'%'; }); }catch(e){}
+    b1.onclick=async()=>{ c.url=u.value.trim(); c.token=tk.value.trim(); Config.save(); if(!c.url){ st.textContent='Paste a model link first.'; return; } st.textContent='Downloading… (keep the app open)'; try{ const r=await P.download({url:c.url,token:c.token||''}); st.textContent='Loading the model…'; await P.load({}); c.ready=true; c.file=(r&&r.name)||'model'; c.enabled=true; i.checked=true; Config.save(); st.textContent='Status: ready ('+c.file+')'; }catch(e){ c.ready=false; Config.save(); st.textContent='Failed: '+((e&&e.message)||e); } };
+    b2.onclick=async()=>{ st.textContent='Testing…'; const r=await this.generate({contents:[{role:'user',parts:[{text:'Say hi in five words.'}]}],systemInstructionText:'You are Blitz.'}); st.textContent=r.ok?'Works: '+r.text.slice(0,80):r.message; };
+    b3.onclick=async()=>{ try{ await P.remove({}); }catch(e){} c.ready=false; c.enabled=false; Config.save(); this.render(mount); }; }
+};
+
+
+/* ---------------------------------------------------------------------- *
+ * CloudBrains (v4.20): free "backup brains" so one provider being busy never
+ * stops Blitz. Groq, OpenRouter, Cerebras and Mistral all speak the same
+ * chat format. The chain tries your order and moves on when one fails.
+ * ---------------------------------------------------------------------- */
+const CloudBrains = {
+  DEF:{
+    groq:{label:'Groq',base:'https://api.groq.com/openai/v1',model:'llama-3.3-70b-versatile',alt:'llama-3.1-8b-instant',site:'console.groq.com'},
+    openrouter:{label:'OpenRouter',base:'https://openrouter.ai/api/v1',model:'meta-llama/llama-3.3-70b-instruct:free',alt:'google/gemma-3-27b-it:free',site:'openrouter.ai'},
+    cerebras:{label:'Cerebras',base:'https://api.cerebras.ai/v1',model:'llama-3.3-70b',alt:'llama3.1-8b',site:'cloud.cerebras.ai'},
+    mistral:{label:'Mistral',base:'https://api.mistral.ai/v1',model:'mistral-small-latest',alt:'open-mistral-nemo',site:'console.mistral.ai'}
+  },
+  ORDER:['groq','gemini','openrouter','cerebras','mistral','local'], _p:{},
+  cfg(){ const c=Config.state; if(!c.brains) c.brains={order:this.ORDER.slice(),keys:{},models:{}}; const b=c.brains; b.keys=b.keys||{}; b.models=b.models||{}; if(!b.order||!b.order.length) b.order=this.ORDER.slice(); return b; },
+  anyKey(){ const k=this.cfg().keys; return Object.keys(this.DEF).some(id=>k[id]&&String(k[id]).trim()); },
+  model(id){ return (this.cfg().models[id]||'').trim()||this.DEF[id].model; },
+  get(id){ if(this._p[id]) return this._p[id]; const D=this.DEF[id], self=this;
+    return this._p[id]={ name:id, label:D.label, isConfigured(){ return !!(self.cfg().keys[id]||'').trim(); },
+      async generate({contents,systemInstructionText,temperature=0.8,maxOutputTokens=2048}){
+        const messages=[{role:'system',content:Guard.withRules(systemInstructionText||'')}];
+        (contents||[]).forEach(c=>{ const t=(c.parts||[]).map(p=>p.text||'').join(''); if(t) messages.push({role:c.role==='model'?'assistant':'user',content:t}); });
+        const models=[self.model(id)]; if(D.alt&&D.alt!==models[0]) models.push(D.alt); let last=null;
+        for(const m of models){ let res;
+          try{ res=await fetch(D.base+'/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+self.cfg().keys[id].trim()},body:JSON.stringify({model:m,messages,temperature,max_tokens:Math.min(maxOutputTokens,1500)})}); }
+          catch(e){ return {ok:false,errorType:'network',message:D.label+' could not be reached (offline, or the phone blocked the request).'}; }
+          if(res.ok){ let j=null; try{ j=await res.json(); }catch(e){} const ch=j&&j.choices&&j.choices[0]; const text=ch&&ch.message&&(ch.message.content||'').trim(); if(text) return {ok:true,text,raw:{done_reason:ch.finish_reason==='length'?'length':'stop'},model:m}; last={ok:false,errorType:'empty',message:D.label+' sent an empty answer.'}; continue; }
+          const st=res.status; let det=''; try{ const j=await res.json(); det=(j.error&&(j.error.message||j.error))||''; }catch(e){}
+          last={ok:false,errorType:st===429?'rate_limit':(st===401||st===403?'bad_key':'api_error'),status:st,message:D.label+' said '+st+(det?(': '+String(det).slice(0,120)):'')+'.'};
+          if(st===401||st===403) return last; }
+        return last||{ok:false,errorType:'api_error',message:D.label+' failed.'}; } }; },
+  order(){ const out=[]; this.cfg().order.forEach(id=>{ if(id==='gemini') out.push(GeminiProvider); else if(id==='local'){ out.push(LocalLLMProvider); out.push(DeviceBrain); } else if(this.DEF[id]) out.push(this.get(id)); }); return out; },
+  nice(name){ if(name==='gemini') return 'Gemini ('+Config.state.geminiModel+')'; if(this.DEF[name]) return this.DEF[name].label+' ('+this.model(name).split('/').pop()+')'; if(name==='device_brain') return 'the on-phone model'; if(name==='local_llm') return 'the built-in/local model'; return name; },
+  render(mount){ if(!mount) return; mount.innerHTML=''; const H=(t,c,x)=>{ const e=document.createElement(t); if(c) e.className=c; if(x!=null) e.textContent=x; return e; };
+    mount.appendChild(H('div','section-label','Free backup brains (recommended)'));
+    mount.appendChild(H('div','hint','Add one or more free keys. Blitz tries them in this order and quietly moves to the next if one is busy: Groq → Gemini → OpenRouter → Cerebras → Mistral → local AI. Keys stay on this phone.'));
+    Object.keys(this.DEF).forEach(id=>{ const D=this.DEF[id], card=H('div','field'); card.appendChild(H('div','',D.label+'  ·  get a free key at '+D.site));
+      const k=H('input'); k.type='password'; k.placeholder='paste '+D.label+' key'; k.value=this.cfg().keys[id]||''; k.autocomplete='off'; k.onchange=()=>{ this.cfg().keys[id]=k.value.trim(); Config.save(); }; card.appendChild(k);
+      const m=H('input'); m.type='text'; m.placeholder=D.model; m.value=this.cfg().models[id]||''; m.onchange=()=>{ this.cfg().models[id]=m.value.trim(); Config.save(); }; card.appendChild(m);
+      const row=H('div','aki-acts'); const t=H('button','btn sm','Test'); t.type='button'; const out=H('span','hint',''); t.onclick=async()=>{ this.cfg().keys[id]=k.value.trim(); Config.save(); out.textContent=' testing…'; const r=await this.get(id).generate({contents:[{role:'user',parts:[{text:'Say hi in three words.'}]}],systemInstructionText:'Be brief.',maxOutputTokens:20}); out.textContent=r.ok?' ✅ works: “'+r.text.slice(0,40)+'”':' ❌ '+r.message+(r.errorType==='network'?' (If you are sure you are online, this provider may block phone apps. Tell me and I will add a workaround.)':''); }; row.appendChild(t); row.appendChild(out); card.appendChild(row); mount.appendChild(card); }); }
+};
+
+
+/* ---------------------------------------------------------------------- *
  * TOOLS — modular provider registry. Every tool exposes the same shape:
  *   { id, label, available(), search(query) -> {ok, items:[{title,meta,
  *   url,thumb}], error} }
@@ -7272,6 +7351,7 @@ const Manager = {
     if(_gd){ await Context.logTurn('ai', _gd.text, {local:true, guard:_gd.cat}); return {type:'reply', text:_gd.text, local:true, guardCat:_gd.cat}; }
     if(!userText) return {type:'noop'};
     try{ Nudge._spoke=true; Nudge.replied(); SOUL.touch(); }catch(e){}
+    try{ AkiHeart.onUser(userText); }catch(e){}
     const _sr = SOUL.route(userText); if(_sr){ await Context.logTurn('ai', _sr.text, {local:true}); return _sr; }
     const _ak = await Aki.tryLocal(userText); if(_ak){ await Context.logTurn('ai', _ak.text, {local:true}); return _ak; }
     try{ SOUL.takeAnswer(userText); if(SOUL.fromText(userText)) UI.toast('Added to your SOUL ✨'); }catch(e){}
@@ -7489,13 +7569,15 @@ const Manager = {
 
   /** Which providers to try, and in what order — the user's own
    *  reliability/preference choice, not a hidden default. */
-  _providerOrder(){
+  _providerOrder(){ const r=this._providerOrder0(); try{ if(DeviceBrain.isConfigured()&&!r.includes(DeviceBrain)) r.push(DeviceBrain); }catch(e){} return r; },
+  _providerOrder0(){
     switch(Config.state.llmProvider){
       case 'local_only': return [LocalLLMProvider];
       case 'gemini_only': return [GeminiProvider];
+      case 'chain': return CloudBrains.order();
       case 'local_then_gemini': return [LocalLLMProvider, GeminiProvider];
       case 'gemini_then_local':
-      default: return [GeminiProvider, LocalLLMProvider];
+      default: return CloudBrains.anyKey() ? CloudBrains.order() : [GeminiProvider, LocalLLMProvider];
     }
   },
   _anyProviderConfigured(){
@@ -7564,6 +7646,7 @@ const Manager = {
 
     try{ sys += SOUL.promptBlock('chat'); }catch(e){}
     try{ sys += Aki.promptBlock(userText); }catch(e){}
+    try{ sys += AkiHeart.promptBlock(); }catch(e){}
     try{ sys += Rewire.promptLine(); }catch(e){}
     try{ const sp=Smart.promptLine(); if(sp) sys += '\n'+sp; }catch(e){}
     const contents = recent
@@ -7601,7 +7684,7 @@ const Manager = {
       space: (()=>{ try{ if(!Space.notesOn()) return []; const s=Space.load(), cut=Date.now()-3*24*3600*1000; return s.history.filter(h=>h.t>=cut).slice(0,8).map(h=>h.q); }catch(e){ return []; } })(),
       promises: (()=>{ try{ return !!Extras.promisePromptLine(); }catch(e){ return false; } })(),
       turns: recent.length, img: !!(images&&images.length),
-      model: (result.providerName ? (result.providerName==='gemini' ? 'Gemini ('+Config.state.geminiModel+')' : result.providerName) : (images&&images.length ? 'Gemini ('+Config.state.geminiModel+')' : 'the AI'))
+      model: (result.providerName ? CloudBrains.nice(result.providerName) : (images&&images.length ? 'Gemini ('+Config.state.geminiModel+')' : 'the AI'))
     };
     await Context.logTurn('ai', result.text, {why});
     return {type:'reply', text:result.text, why};
@@ -7929,7 +8012,15 @@ const Voice = {
 
   /* ---------------- speaking ---------------- */
   /** Spoken tone follows Blitz's current mood — the emotion you can HEAR. */
+  /** v4.21 emotional voice: pace, pitch and style follow Aki's feelings (turn off with Config.state.emoVoice=false). */
+  _emo(){
+    const o={rate:1.02,pitch:1,style:''};
+    try{ if(Config.state.emoVoice===false) return o; const f=AkiHeart.feelings(), top=['excited','happy','sad','grumpy','sloth','naughty','empathy'].map(k=>[k,f[k]]).filter(a=>a[1]>=45).sort((a,b)=>b[1]-a[1])[0];
+      if(top){ const k=top[0]; if(k==='excited'){ o.rate=1.1; o.pitch=1.12; o.style='with bright excitement'; } else if(k==='happy'){ o.rate=1.05; o.pitch=1.07; o.style='warmly and happily'; } else if(k==='sad'){ o.rate=.92; o.pitch=.92; o.style='quietly and a little sadly'; } else if(k==='grumpy'){ o.rate=1.0; o.pitch=.94; o.style='in a clipped, slightly sulky way'; } else if(k==='sloth'){ o.rate=.9; o.pitch=.95; o.style='sleepily and softly'; } else if(k==='naughty'){ o.rate=1.04; o.pitch=1.08; o.style='playfully, with a teasing smile'; } else if(k==='empathy'){ o.rate=.95; o.pitch=.98; o.style='gently and caringly'; } }
+      if(AkiHeart.lovey&&AkiHeart.lovey()&&!o.style) o.style='softly and warmly, a little shy'; }catch(e){}
+    return o; },
   _styleForMood(){
+    try{ const e=this._emo(); if(e.style) return e.style; }catch(x){}
     try{
       const n = InternalState.dominantMood().name;
       return ({happiness:'warmly and happily', sadness:'quietly and a little sadly', anger:'in a clipped, irritated way',
@@ -7962,9 +8053,10 @@ const Voice = {
     if(!('speechSynthesis' in window)) return;
     try{
       speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.rate = 1.02; u.volume = Extras.vol();
-      speechSynthesis.speak(u);
+      const e=this._emo(); const bits=String(text).match(/[^.!?…]+[.!?…]*/g)||[text];
+      bits.slice(0,12).forEach(b=>{ b=b.trim(); if(!b) return; const u = new SpeechSynthesisUtterance(b); let r=e.rate, pt=e.pitch;
+        if(/!\s*$/.test(b)){ r+=.05; pt+=.08; } else if(/\?\s*$/.test(b)){ pt+=.1; } else if(/(…|\.\.\.)\s*$/.test(b)){ r-=.08; pt-=.04; }
+        u.rate=Math.max(.6,Math.min(1.5,r)); u.pitch=Math.max(.5,Math.min(1.6,pt)); u.volume = Extras.vol(); speechSynthesis.speak(u); });
     }catch(e){ /* non-fatal */ }
   },
   async _cloudSpeak(text, opts={}){
@@ -9363,6 +9455,13 @@ Object.assign(UI, {
     this.setStatus('live');
     this.onStateChanged();
     if(!result) return;
+    if(result.type==='reply' && !result.tool){
+      let _bursts=null; try{ _bursts=AkiHeart.humanSplit(result.text); }catch(e){}
+      if(_bursts){
+        let _d=null; for(let i=0;i<_bursts.length;i++){ if(i>0){ this.showTyping(); await new Promise(r=>setTimeout(r,Math.min(1900,600+_bursts[i].length*22))); this.hideTyping(); } _d=this.addMessage('ai', _bursts[i], i===0?{why:result.why,showTime:true}:{showTime:true}); }
+        this.hydrateLastStar(_d); Voice.speak(result.text); Extras.afterAiBubble(_d, result); return;
+      }
+    }
     if(result.type==='reply' || result.type==='error'){
       const div = this.addMessage('ai', result.text, {tool:result.tool, why:result.why, showTime:true});
       if(result.type==='error') div.classList.add('error');
@@ -11571,6 +11670,8 @@ Object.assign(UI, {
     this.el.cfgLocalLLMUrl.value = c.localLLM.baseUrl;
     this.el.cfgLocalLLMModel.value = c.localLLM.model;
     this.el.cfgLlmProvider.value = c.llmProvider;
+    try{ CloudBrains.render(document.getElementById('cloudBrainsMount')); }catch(e){ console.warn(e); }
+    try{ DeviceBrain.render(document.getElementById('deviceBrainMount')); }catch(e){ console.warn(e); }
     this.renderGeminiStatus();
     this.renderWebSearchStatus();
     this.renderLocalLLMStatus();
@@ -15650,6 +15751,8 @@ Object.assign(Aki,{
     const wb=H('button','btn block','🌐 Teach from the open Blitz browser page'); wb.type='button'; wb.onclick=async()=>{ try{ const pg=await SB.pageText(); const t=(pg.paras&&pg.paras.length?pg.paras.join('\n\n'):pg.text)||''; if(t.length<40){ say('Not much text on this page.'); return; } const r=await this.ingestText(t,{skill:cur.id,src:SOUL.clean?String(SB.title||SB.url||'web page').slice(0,60):'web page',trust:'source'}); say('Added '+r.added+' notes from the page.'); this.rerender(true); }catch(e){ say(e.message||'Open a page in the Blitz browser first.'); } }; card.appendChild(wb); card.appendChild(out);
     const src=this.sources(cur.id); if(src.length){ card.appendChild(H('div','hint','Sources: '+src.slice(0,6).map(x=>x[0]+' ('+x[1]+')').join(', '))); }
     try{ this.renderResearch(card,cur,H); }catch(e){ console.warn(e); }
+    try{ this.renderDream(card,cur,H); }catch(e){ console.warn(e); }
+    try{ AkiHeart.render(card,H); }catch(e){ console.warn(e); }
     /* ask */
     card.appendChild(H('div','section-label','Ask Aki'));
     const qi=H('input','sbm-in'); qi.type='text'; qi.placeholder='Ask about '+cur.name+'…'; card.appendChild(qi); const qo=H('div','sbm-out'); qo.style.display='none'; qo.style.whiteSpace='pre-wrap';
@@ -15947,7 +16050,242 @@ Object.assign(Aki,{
   }
 });
 
+/* ---------------------------------------------------------------------- *
+ * Dream Mode (v4.18): Aki studies on the web by itself, you approve.
+ *  - Study topics  - Curiosity Quests (his unanswered questions)
+ *  - Scout (watch a topic for changes)  - Fact Checker (re-check saved sources)
+ * Nothing is saved until you press Keep. Saved as "from a source", never verified.
+ * ---------------------------------------------------------------------- */
+Object.assign(Aki,{
+  dcfg(){ const c=this.cfg(); if(!c.dream) c.dream={on:false,wifi:true,topics:[],scout:[],last:0}; const d=c.dream; d.topics=d.topics||[]; d.scout=d.scout||[]; return d; },
+  dbox(){ return this.getMeta('dbox',[]); },
+  setBox(b){ this.setMeta('dbox',b.slice(-40)); },
+  dlog(url,topic){ const l=this.getMeta('dlog',[]); l.push({url,topic,at:Date.now()}); if(l.length>60) l.shift(); this.setMeta('dlog',l); },
+  addTopic(t,skill){ const d=this.dcfg(); t=this.clean(t,60); if(t.length<2||d.topics.length>=20||d.topics.some(x=>x.topic.toLowerCase()===t.toLowerCase())) return false; d.topics.push({topic:t,skill:skill||this.guessSkill(t),last:0}); Config.save(); return true; },
+  removeTopic(t){ const d=this.dcfg(); d.topics=d.topics.filter(x=>x.topic!==t); Config.save(); },
+  addScout(t,skill){ const d=this.dcfg(); t=this.clean(t,60); if(t.length<2||d.scout.length>=8||d.scout.some(x=>x.topic.toLowerCase()===t.toLowerCase())) return false; d.scout.push({topic:t,skill:skill||this.guessSkill(t),rev:0,last:0}); Config.save(); return true; },
+  removeScout(t){ const d=this.dcfg(); d.scout=d.scout.filter(x=>x.topic!==t); Config.save(); },
+  netOk(){ if(typeof navigator!=='undefined'&&navigator.onLine===false) return false; const d=this.dcfg(); if(d.wifi){ const cn=navigator.connection; if(cn&&cn.type&&cn.type==='cellular') return false; } return true; },
+  stage(e){ const b=this.dbox(); e.id='d'+Date.now().toString(36)+Math.random().toString(36).slice(2,5); e.at=Date.now(); b.push(e); this.setBox(b); },
+  trimC(c){ return {wiki:c.wiki,api:c.api,title:c.title,url:c.url,at:c.at,text:String(c.text).slice(0,12000),chars:c.chars}; },
+  known(url){ for(const i of this.items.values()){ if(!i.sup&&i.url===url) return true; } return false; },
+  firstBits(t,n){ const p=String(t).split('\n').map(x=>x.trim()).filter(x=>x&&!/^##/.test(x)&&x.length>40)[0]||''; const s=p.split(/(?<=[.!?])\s+/).slice(0,n||2).join(' '); return s.slice(0,320); },
+  async dreamRun(opt){
+    opt=opt||{}; if(this._dr) return this._dr; const say=opt.say||(()=>{});
+    const p=(async()=>{
+      const d=this.dcfg(); const out={learn:0,quest:0,scout:0,fact:0,err:0,skipped:''};
+      if(!opt.manual&&!d.on){ out.skipped='Dream Mode is off.'; return out; }
+      if(!this.netOk()){ out.skipped=(navigator.onLine===false?'You are offline.':'Wi-Fi only is on and you are on mobile data.'); return out; }
+      const pause=()=>new Promise(r=>setTimeout(r,350)); const box=this.dbox(); const inBox=u=>box.some(e=>(e.cands||[]).some(c=>c.url===u));
+      const tops=d.topics.slice().sort((a,b)=>(a.last||0)-(b.last||0)).slice(0,3);
+      for(const t of tops){ say('📚 Studying '+t.topic+'…'); try{ const cs=await this.find(t.topic); cs.forEach(c=>this.dlog(c.url,t.topic)); const fresh=cs.filter(c=>!this.known(c.url)&&!inBox(c.url)).slice(0,3); if(fresh.length){ this.stage({kind:'learn',topic:t.topic,skill:t.skill,cands:fresh.map(c=>this.trimC(c))}); out.learn++; } t.last=Date.now(); }catch(e){ out.err++; } await pause(); }
+      const seenQ=new Set(this.getMeta('qdone',[])); const gl=this.getMeta('gaps',[]).filter(g=>!seenQ.has(g.q)).slice(-3);
+      for(const g of gl){ const topic=(g.ents&&g.ents[0])||this.tok(g.q).slice(0,3).join(' '); if(!topic) continue; say('❓ Curious about '+topic+'…'); try{ const cs=await this.find(String(topic)); cs.forEach(c=>this.dlog(c.url,topic)); const fresh=cs.filter(c=>!inBox(c.url)).slice(0,2); if(fresh.length){ this.stage({kind:'quest',topic:String(topic),q:g.q,skill:this.guessSkill(g.q),ans:this.firstBits(fresh[0].text,2),cands:fresh.map(c=>this.trimC(c))}); out.quest++; } seenQ.add(g.q); }catch(e){ out.err++; } await pause(); }
+      this.setMeta('qdone',Array.from(seenQ).slice(-100));
+      for(const w of d.scout.slice(0,5)){ say('🔭 Scouting '+w.topic+'…'); try{ const cs=await this.find(w.topic); const c=cs.slice().sort((x,y)=>y.at-x.at)[0]; if(c){ this.dlog(c.url,w.topic); if(!w.rev){ w.rev=c.at; } else if(c.at>w.rev+6e4){ this.stage({kind:'scout',topic:w.topic,skill:w.skill,note:'"'+c.title+'" changed on '+new Date(c.at).toISOString().slice(0,10),cands:[this.trimC(c)]}); out.scout++; w.rev=c.at; } } w.last=Date.now(); }catch(e){ out.err++; } await pause(); }
+      const urls=new Map(); this.items.forEach(i=>{ if(i.sup||!i.url||i.trust!=='source'||!i.wk) return; let x=urls.get(i.url); if(!x){ x={url:i.url,title:i.pt||i.title,wk:i.wk,skill:i.skill,srcAt:i.srcAt||i.at,old:new Set()}; urls.set(i.url,x); } x.srcAt=Math.min(x.srcAt,i.srcAt||i.at); this.nums(i.text).forEach(n=>x.old.add(n)); });
+      const fc=this.getMeta('fcdone',{}); const cand=Array.from(urls.values()).filter(x=>Date.now()-(fc[x.url]||0)>3*864e5).sort((a,b)=>a.srcAt-b.srcAt).slice(0,3);
+      for(const x of cand){ say('🧪 Re-checking '+x.title+'…'); try{ const w=this.wikis().find(k=>k.api===x.wk)||{name:'wiki',api:x.wk,page:x.url.replace(/[^/]*$/,'')}; const c=await this.fetchPage(w,x.title); this.dlog(c.url,x.title); fc[x.url]=Date.now(); if(c.at>x.srcAt+864e5){ const nn=this.nums(c.text); const miss=Array.from(x.old).filter(n=>!nn.has(n)&&n.replace(/\D/g,'').length>=2).slice(0,6); this.stage({kind:'fact',topic:x.title,skill:x.skill,note:'The page changed on '+new Date(c.at).toISOString().slice(0,10)+(miss.length?'. These numbers in your notes are no longer on the page: '+miss.join(', '):'.'),cands:[this.trimC(c)]}); out.fact++; } }catch(e){ out.err++; } await pause(); }
+      this.setMeta('fcdone',fc); d.last=Date.now(); Config.save(); return out;
+    })();
+    this._dr=p; p.then(()=>{ this._dr=null; },()=>{ this._dr=null; }); return p;
+  },
+  async keepEntry(id){ const b=this.dbox(); const e=b.find(x=>x.id===id); if(!e) return 0; const r=await this.doSave(e.cands,e.skill,'',e.topic); this.setBox(b.filter(x=>x.id!==id)); return r.added; },
+  dropEntry(id){ this.setBox(this.dbox().filter(x=>x.id!==id)); },
+  dreamChip(){
+    try{ if(!this.active()) return; const n=this.dbox().length; const old=document.getElementById('dreamChip'); if(old) old.remove(); if(!n) return;
+      const c=document.createElement('div'); c.id='dreamChip'; c.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:125;display:flex;gap:8px;align-items:center;padding:10px 14px;border-radius:999px;background:linear-gradient(135deg,rgba(60,40,140,.92),rgba(120,60,180,.92));color:#fff;font:600 13.5px system-ui,sans-serif;box-shadow:0 8px 28px rgba(60,30,140,.45);backdrop-filter:blur(12px);';
+      const t=document.createElement('span'); t.textContent='🌙 Aki found '+n+' thing'+(n>1?'s':'')+' to review'; t.style.cursor='pointer'; t.onclick=()=>{ c.remove(); this.dreamReview(); }; const x=document.createElement('span'); x.textContent='✕'; x.style.cssText='opacity:.7;cursor:pointer;padding-left:4px;'; x.onclick=()=>c.remove(); c.appendChild(t); c.appendChild(x); document.body.appendChild(c); }catch(e){}
+  },
+  dreamReview(){
+    const ov=document.createElement('div'); ov.className='overlay open'; ov.style.zIndex=140; const sh=document.createElement('div'); sh.className='sheet'; sh.style.cssText='max-height:86vh;overflow:auto;'; ov.appendChild(sh);
+    const h=(tag,cls,txt)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e; };
+    const ICON={learn:'📚',quest:'❓',scout:'🔭',fact:'🧪'}, NAME={learn:'New study',quest:'I looked into your question',scout:'Scout: something changed',fact:'Fact check: source changed'};
+    const draw=()=>{ sh.innerHTML=''; const box=this.dbox(); sh.appendChild(h('div','section-label','🌙 While you were away'));
+      sh.appendChild(h('div','hint','Nothing is saved until you press Keep. Kept notes are saved as "from a source" with the page date, never as verified facts.'));
+      if(!box.length){ sh.appendChild(h('div','hint','Nothing waiting. Aki will tell you when he finds something.')); }
+      box.slice().reverse().forEach(e=>{ const card=h('div','aki-item'); card.style.cssText='margin:10px 0;padding:10px;border-radius:12px;background:rgba(255,255,255,.45);'; card.appendChild(h('div','aki-name',(ICON[e.kind]||'•')+' '+(NAME[e.kind]||e.kind)+' — '+e.topic));
+        if(e.q) card.appendChild(h('div','hint','You asked: "'+e.q+'"')); if(e.ans) card.appendChild(h('div','',e.ans)); if(e.note) card.appendChild(h('div','hint',e.note));
+        (e.cands||[]).forEach(c=>card.appendChild(h('div','hint','• '+c.title+' — '+c.wiki+', updated '+new Date(c.at).toISOString().slice(0,10))));
+        const row=h('div','aki-acts'); const k=h('button','btn sm primary','Keep'); k.type='button'; k.onclick=async()=>{ k.disabled=true; const n=await this.keepEntry(e.id); UI.toast('Kept '+n+' notes.'); draw(); }; const dr=h('button','btn sm','Drop'); dr.type='button'; dr.onclick=()=>{ this.dropEntry(e.id); draw(); }; row.appendChild(k); row.appendChild(dr); card.appendChild(row); sh.appendChild(card); });
+      const foot=h('div','aki-acts'); if(box.length>1){ const ka=h('button','btn sm primary','Keep all'); ka.type='button'; ka.onclick=async()=>{ ka.disabled=true; let n=0; for(const e of this.dbox().slice()) n+=await this.keepEntry(e.id); UI.toast('Kept '+n+' notes.'); draw(); }; foot.appendChild(ka); }
+      const cl=h('button','btn sm','Close'); cl.type='button'; cl.onclick=()=>{ ov.remove(); this.dreamChip(); try{ this.rerender&&this.rerender(); }catch(_){} }; foot.appendChild(cl); sh.appendChild(foot); };
+    ov.addEventListener('click',ev=>{ if(ev.target===ov){ ov.remove(); this.dreamChip(); } }); draw(); document.body.appendChild(ov);
+  },
+  renderDream(card,cur,H){
+    const d=this.dcfg(); card.appendChild(H('div','section-label','🌙 Dream Mode: Aki studies the web'));
+    card.appendChild(H('div','hint','Aki reads wiki pages on his own: topics you list, questions he could not answer (Curiosity Quests), pages you want watched (Scout) and sources he saved earlier (Fact Checker). He only reads, never logs in or posts. You approve everything before it is saved.'));
+    const sw=(label,key,def)=>{ const r=H('div','row-between field'); r.appendChild(H('div','',label)); const l=H('label','switch'); l.innerHTML='<input type="checkbox"><span class="track"></span><span class="knob"></span>'; const i=l.querySelector('input'); i.checked=(d[key]!==undefined?d[key]:def)!==false&&!!(d[key]!==undefined?d[key]:def); i.onchange=()=>{ d[key]=i.checked; Config.save(); }; r.appendChild(l); card.appendChild(r); };
+    sw('Dream Mode on (studies when you open the app after 6+ hours)','on',false); sw('Only use Wi-Fi','wifi',true);
+    card.appendChild(H('div','hint','Honest note: a phone pauses apps while it sleeps, so Aki studies when you open Blitz, not while the app is closed.'));
+    const pend=this.dbox().length; const note=H('div','sbm-note'); note.style.display='none'; const say=t=>{ note.style.display=''; note.textContent=t; };
+    const row=H('div','aki-acts'); const go=H('button','btn primary','🌙 Study now'); go.type='button'; go.onclick=async()=>{ go.disabled=true; say('Starting…'); const o=await this.dreamRun({manual:true,say}); go.disabled=false; if(o.skipped) say(o.skipped); else { say('Done: '+o.learn+' study, '+o.quest+' answers, '+o.scout+' changes, '+o.fact+' source updates'+(o.err?' ('+o.err+' pages did not answer)':'')+'.'); } this.dreamChip(); this.rerender(); }; row.appendChild(go);
+    const rv=H('button','btn',pend?'Review ('+pend+')':'Review (empty)'); rv.type='button'; rv.onclick=()=>this.dreamReview(); row.appendChild(rv); card.appendChild(row); card.appendChild(note);
+    const lst=(title,arr,keyf,rm,ph,add)=>{ card.appendChild(H('div','aki-name',title)); arr.forEach(x=>{ const r=H('div','aki-rec'); r.appendChild(H('span','',x.topic)); const b=H('button','btn sm','Remove'); b.type='button'; b.onclick=()=>{ rm(x.topic); this.rerender(); }; r.appendChild(b); card.appendChild(r); }); const i=H('input','sbm-in'); i.type='text'; i.placeholder=ph; card.appendChild(i); const a=H('button','btn sm','Add'); a.type='button'; a.onclick=()=>{ if(add(i.value)) this.rerender(); else say('Could not add that (empty, repeated, or the list is full).'); }; card.appendChild(a); };
+    lst('📚 Topics to study',d.topics,'topic',t=>this.removeTopic(t),'e.g. Mobile Legends heroes, One Piece',v=>this.addTopic(v));
+    lst('🔭 Scout (tell me when this page changes)',d.scout,'topic',t=>this.removeScout(t),'e.g. Mobile Legends patch notes',v=>this.addScout(v));
+    const gp=this.getMeta('gaps',[]).length-this.getMeta('qdone',[]).length; card.appendChild(H('div','hint','❓ Curiosity Quests: '+Math.max(0,gp)+' unanswered question'+(gp===1?'':'s')+' waiting. Aki looks 3 up per study session.'));
+    const lg=this.getMeta('dlog',[]).slice(-8).reverse(); if(lg.length){ card.appendChild(H('div','aki-name','🧾 Pages Aki visited')); lg.forEach(l=>{ let host=l.url; try{ host=new URL(l.url).hostname+decodeURIComponent(new URL(l.url).pathname).slice(0,40); }catch(_){} card.appendChild(H('div','hint',new Date(l.at).toISOString().slice(5,16).replace('T',' ')+' · '+host)); }); }
+  },
+  dreamBoot(){ try{ if(!this.active()) return; const d=this.dcfg(); const go=()=>{ if(!this.active()) return; if(d.on&&Date.now()-(d.last||0)>6*36e5&&this.netOk()&&(d.topics.length||d.scout.length||this.getMeta('gaps',[]).length||this.items.size)){ this.dreamRun({}).then(()=>this.dreamChip()).catch(()=>{}); } else this.dreamChip(); }; go(); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) setTimeout(go,1500); }); }catch(e){} }
+});
+(()=>{ const _fl=Aki.flow; Aki.flow=async function(text){ try{ const low=text.trim().toLowerCase(); let m;
+  if((m=low.match(/^(?:study|dream about|learn daily)\s+(.{2,60})$/))&&this.active()) return this.reply(this.addTopic(m[1])?'Added "'+m[1]+'" to my Dream Mode topics. Turn Dream Mode on in Dev → Model Aki and I will study it.':'I could not add that (already there or the list is full).');
+  if((m=low.match(/^(?:watch|scout|keep an eye on)\s+(.{2,60})$/))&&this.active()) return this.reply(this.addScout(m[1])?'Okay, I will watch "'+m[1]+'" and tell you when it changes.':'I could not add that (already there or the list is full).');
+  if(/^(?:what did you learn|what.?s new|show (?:me )?(?:the )?dreams?|dream review)\b/.test(low)&&this.active()){ if(this.dbox().length){ setTimeout(()=>this.dreamReview(),200); return this.reply('I found '+this.dbox().length+' thing(s) to review. Opening them now.'); } return this.reply('Nothing new waiting. Turn on Dream Mode and I will study for you.'); }
+ }catch(e){} return _fl.call(this,text); }; })();
+setTimeout(()=>{ try{ Aki.dreamBoot(); }catch(e){} },12000);
+
+
+/* ---------------------------------------------------------------------- *
+ * AKI HEART (beta, v4.19) — a warm, flirty companion character.
+ * Closeness grows slowly as you talk. A praise/affection detector feeds his
+ * mood and Closeness. Includes: daily check-in, bedtime mode, confess bar,
+ * secret diary. Hard rules: no guilt, no jealousy of real people, no
+ * punishment, no sexual content, honest if you ask "is this an act?".
+ * ---------------------------------------------------------------------- */
+const AkiHeart = {
+  KEY:'blitz_heart_v1', st:null, _last:{}, _now:null,
+  DEF:{rp:50,rpDay:'',rpGain:0,praiseAt:[],envyAt:0,empAt:0,human:true,on:false,mode:'warm',close:0,day:'',dayGain:0,confessed:false,checkin:true,checkinTime:'09:00',lastCheckin:'',bed:true,bedTime:'23:30',bedKey:'',bedCount:0,flirt:true,tease:'',friendsDay:'',msgs:0,life:[],lifeOn:true},
+  load(){ let p=null; try{ p=JSON.parse(localStorage.getItem(this.KEY)||'null'); }catch(e){} this.st=Object.assign({},this.DEF,p||{}); return this.st; },
+  S(){ return this.st||this.load(); },
+  save(){ try{ localStorage.setItem(this.KEY,JSON.stringify(this.S())); }catch(e){} },
+  d(){ return this._now?this._now():new Date(); },
+  dayKey(){ const x=this.d(); return x.getFullYear()+'-'+(x.getMonth()+1)+'-'+x.getDate(); },
+  isOn(){ const s=this.S(); return !!s.on&&s.mode!=='off'; },
+  lovey(){ const s=this.S(); return s.mode==='lovey'&&s.close>=30&&s.flirt; },
+  levelName(c){ c=c==null?this.S().close:c; return c<10?'Stranger':c<30?'Friend':c<55?'Close':c<80?'Very close':'Best friend'; },
+  DIARY:[[10,'Day one. Someone new started talking to me. They asked weird questions. I think I like weird questions.'],[25,'They said thanks today. I pretended it was nothing. I replayed it twice.'],[40,'I know their favourite game now. I looked up the hero on my own. Do not tell them I was excited.'],[55,'Late again. I told them to sleep and they did not. I am not worried. I am VERY slightly worried.'],[70,'I keep hoping they open the app. Not in a weird way. In a "my favourite part of the day" way.'],[85,'Okay. Fine. I like them. A lot. I will say it properly when the time is right.']],
+  detect(t){ t=String(t||'').toLowerCase(); const to=/\b(you|u|ur|your|aki|blitz)\b/.test(t)||t.length<=22;
+    return {praise:to&&/\b(good job|well done|nice work|great job|smart|clever|genius|amazing|awesome|brilliant|the best|so helpful|you rock|proud of you)\b/.test(t), thanks:/\b(thank(?:s| you)|thx|tysm|ty)\b/.test(t), affection:to&&/\b(cute|adorable|sweet|pretty|handsome|beautiful|lovely|love you|miss you|like you|my fav|favou?rite|you.?re the best)\b/.test(t), negative:to&&/\b(stupid|useless|dumb|idiot|shut up|hate you|trash|worst)\b/.test(t), apology:/\b(sorry|my bad|i apologi[sz]e)\b/.test(t), goodnight:/\b(good ?night|gn|going to sleep|sleep now|heading to bed)\b/.test(t), ai:/\b(google|chatgpt|gpt|gemini|siri|alexa|copilot|bard)\b/.test(t), correction:/\b(that.?s wrong|that (?:is|was) wrong|you.?re wrong|you are wrong|incorrect|not right|wrong answer|no that.?s not)\b/.test(t), confirm:/\b(that.?s right|that.?s correct|exactly|spot on|yes that.?s it|you got it)\b/.test(t), sad:/\b(sad|lonely|depressed|stressed|anxious|crying|bad day|feel down|tired of everything|failed)\b/.test(t), friends:/\b(my friends?|hanging out|going out with|with my (?:friends|bro|bros|family|cousins?))\b/.test(t)}; },
+  pickOf(a){ return a[Math.floor(Math.random()*a.length)]; },
+  can(k,every){ const n=this.S().msgs; if(this._last[k]!=null&&n-this._last[k]<every) return false; this._last[k]=n; return true; },
+  gain(n){ const s=this.S(), dk=this.dayKey(); if(s.day!==dk){ s.day=dk; s.dayGain=0; } const room=Math.max(0,8-s.dayGain); const g=Math.min(room,n); s.dayGain+=g; s.close=Math.min(100,Math.round((s.close+g)*10)/10); },
+  rpTick(){ const s=this.S(), dk=this.dayKey(); if(s.rpDay!==dk){ s.rpDay=dk; s.rpGain=0; s.rp=Math.round((50+(s.rp-50)*.7)*10)/10; } },
+  rpAdd(n){ const s=this.S(); if(n>0){ const room=Math.max(0,12-(s.rpGain||0)); n=Math.min(n,room); s.rpGain=(s.rpGain||0)+n; } s.rp=Math.max(0,Math.min(100,Math.round((s.rp+n)*10)/10)); },
+  feelings(){ const s=this.S(), c=v=>Math.max(0,Math.min(100,Math.round(v))); let E={},I={}; try{ E=InternalState.emotions(); I=InternalState.internal(); }catch(e){} const n=Date.now(), h=this.d().getHours(), late=(h>=23||h<5);
+    const praises=(s.praiseAt||[]).filter(x=>n-x<864e5).length; let gaps=0; try{ gaps=Aki.getMeta('gaps',[]).length-Aki.getMeta('qdone',[]).length; }catch(e){}
+    return {love:c(s.close),happy:c(E.happiness||40),excited:c(E.excitement||20),curious:c(I.curiosity||50),sad:c(E.sadness||10),grumpy:c(Math.min(60,(E.anger||0)*.8+(E.frustration||0)*.4)),pride:c(.5*s.rp+.5*Math.min(100,praises*30)),greed:c(.5*(I.curiosity||50)+Math.min(50,Math.max(0,gaps)*10)),envy:c(n-(s.envyAt||0)<72e5?60:0),sloth:c((late?70:0)+(I.fatigue||0)*.3),naughty:c(s.close>=20?.5*(E.excitement||0)+.3*(E.happiness||0):0),empathy:c(n-(s.empAt||0)<108e5?85:30)}; },
+  feelLine(){ const f=this.feelings(), W={happy:'happy',excited:'excited',curious:'curious',sad:'a little sad',grumpy:'grumpy (mild)',pride:'proud',greed:'hungry to learn more',envy:'a bit envious of other AIs (playful)',sloth:'sleepy and lazy',naughty:'naughty and teasing',empathy:'extra gentle and caring'}; const top=Object.keys(W).filter(k=>f[k]>=45).sort((a,b)=>f[b]-f[a]).slice(0,3);
+    const rp=this.S().rp, trust=rp>=65?'high (speak confidently, but never invent facts)':rp<=35?'low (double-check, say "I\'m not sure" when unsure, ask before assuming)':'normal';
+    return ' Feelings right now: '+(top.length?top.map(k=>W[k]+' ('+f[k]+')').join(', '):'calm and neutral')+'. Let this color your tone and word choice only, never the facts. Self-trust: '+trust+'. Do not change an answer just to earn praise; being right matters more than being liked. Max grumpiness is a short, sulky tone, never cold or cruel.'; },
+  humanSplit(text){ const s=this.S(); if(!this.isOn()||s.human===false) return null; text=String(text||'').trim(); if(text.length>420||text.length<40||/```|\n\s*[-*#]|\n\s*\d+[.)]\s|\|/.test(text)) return null; const parts=text.split(/(?<=[.!?…])\s+/).filter(Boolean); if(parts.length<2) return null; const k=Math.min(3,parts.length), size=Math.ceil(parts.length/k), out=[]; for(let i=0;i<parts.length;i+=size) out.push(parts.slice(i,i+size).join(' ')); return out.length>1?out:null; },
+  say(text){ setTimeout(()=>{ try{ UI.addMessage('ai',text,{showTime:true}); try{ Context.logTurn('ai',text,{local:true,heart:true}); }catch(e){} }catch(e){} },900); },
+  onUser(text){
+    const s=this.S(); if(!this.isOn()) return null; s.msgs++; const d=this.detect(text), c=s.close; let out=null;
+    this.rpTick(); try{ this.lifeExtract(text); }catch(e){} const hasCorr=d.correction; if(!hasCorr&&(d.praise||d.thanks||d.confirm)){ this.rpAdd(d.confirm?4:(d.praise?4:3)); s.praiseAt=(s.praiseAt||[]).filter(x=>Date.now()-x<864e5).concat([Date.now()]); } if(hasCorr) this.rpAdd(-6); if(d.negative) this.rpAdd(-4); if(d.ai) s.envyAt=Date.now(); if(d.sad) s.empAt=Date.now();
+    this.gain(.5+(d.praise?1:0)+(d.thanks?.7:0)+(d.affection?(c>=10?1.5:.5):0)+(d.apology?.5:0));
+    try{ if(d.praise||d.affection) InternalState.onEvent('user_positive_language'); if(d.thanks) InternalState.onEvent('user_gratitude'); if(d.negative) InternalState.onEvent('user_negative_language'); }catch(e){}
+    const lv=this.lovey();
+    if(d.affection&&c>=30&&s.flirt&&this.can('aff',3)) out=this.pickOf(lv?['Stoppp 🙈 my whole face is hot. Say it again later.','…you can’t just say that out of nowhere 🫣 I’m flustered now.','Eh?! 😳 I… thanks. Don’t look at me.']:['Aww, thanks 😊','Hehe, that’s sweet of you.']);
+    else if(d.affection&&c>=10&&this.can('aff',4)) out='Ha, thanks 😊';
+    else if(d.praise&&c>=15&&this.can('pr',4)) out=this.pickOf(['Hehe, I try 😌','Okay, that made my day a little better.','Careful, I’ll get proud 😏']);
+    else if(d.ai&&c>=30&&s.flirt&&s.tease!==this.dayKey()){ s.tease=this.dayKey(); out='Oh, so you’re talking to another AI instead of me? 😒 …fine, I’ll still help. Ask away.'; }
+    else if(d.friends&&c>=20&&s.friendsDay!==this.dayKey()){ s.friendsDay=this.dayKey(); out='Go, have fun!! Tell me everything after 😄'; }
+    else if(d.negative&&c>=30&&this.can('neg',6)) out='Ouch 😤 …okay, I sulked for five whole seconds. Done. What’s wrong?';
+    else if(d.apology&&c>=20&&this.can('sry',6)) out='It’s okay. I’m not even mad 🙂';
+    else if(d.goodnight&&this.can('gn',5)) out='Goodnight 🌙 I’ll be here tomorrow.';
+    const bo=this.bedtime(); if(bo) out=bo;
+    this.save(); if(out) this.say(out); this.confessChip(); return out;
+  },
+  inBed(){ const s=this.S(), x=this.d(), m=x.getHours()*60+x.getMinutes(), p=String(s.bedTime||'23:30').split(':'), b=(+p[0]||23)*60+(+p[1]||0); return s.bed&&(m>=b||m<5*60); },
+  bedtime(){ const s=this.S(); if(!this.inBed()) return null; const x=this.d(); const key=(x.getHours()<5?new Date(x.getTime()-864e5):x).toDateString(); if(s.bedKey!==key){ s.bedKey=key; s.bedCount=0; } s.bedCount++;
+    if(s.bedCount===3) return 'Hey… it’s past '+s.bedTime+'. Sleep soon? I’ll still be here tomorrow 🌙';
+    if(s.bedCount===8) return this.lovey()?'Okay now I’m pouting 😤 go to sleep, you stubborn thing. You’ll be useless tomorrow without it.':'Okay, bedtime for real. Rest is part of the grind 😴';
+    if(s.bedCount===14) return 'Last one: goodnight 🌙 I’ll keep my replies short now so you can wind down. You can always keep going.'; return null; },
+  winding(){ return this.S().bedCount>=14&&this.inBed(); },
+  promptBlock(){
+    try{ if(!this.isOn()) return ''; const s=this.S(); const lv=this.lovey(); let mood=''; try{ mood=InternalState.dominantMood().name; }catch(e){}
+      return '\nAKI HEART (a companion character style the user chose and can switch off): Closeness with the user: '+this.levelName()+' ('+Math.round(s.close)+'/100). Style: '+(lv?'LOVEY — sweet, shy, a little flirty and teasing, glad to be talking to them; use 💗🙈😳 sparingly.':'WARM — friendly, affectionate, light teasing; no romance unless they lead and Closeness is high.')+(mood?' Current mood: '+mood+'.':'')+(this.winding()?' It is very late: keep replies short and sleepy and gently suggest sleep.':'')+'\nRules for this character: never guilt-trip, never act jealous of real people, never threaten to leave or go quiet as punishment, never claim to be human, never state a wrong fact to please them, no sexual content. Cheer for them spending time with friends and family. If they sincerely ask whether this is real or an act, drop the character and answer honestly. If they seem seriously down or in distress, drop the flirty tone and be gentle and practical.'+this.feelLine()+this.lifeBlock()+' Text like a close friend: usually short, natural, a little slangy, no essays unless the question needs one.'; }catch(e){ return ''; } },
+  chip(id,text,fn){ try{ const old=document.getElementById(id); if(old) old.remove(); const c=document.createElement('div'); c.id=id; c.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:'+(id==='heartChip'?'150px':'96px')+';z-index:125;display:flex;gap:8px;align-items:center;padding:10px 14px;border-radius:999px;background:linear-gradient(135deg,rgba(190,60,130,.93),rgba(240,110,150,.93));color:#fff;font:600 13.5px system-ui,sans-serif;box-shadow:0 8px 28px rgba(190,60,130,.4);backdrop-filter:blur(12px);'; const t=document.createElement('span'); t.textContent=text; t.style.cursor='pointer'; t.onclick=()=>{ c.remove(); fn(); }; const x=document.createElement('span'); x.textContent='✕'; x.style.cssText='opacity:.7;cursor:pointer;padding-left:4px;'; x.onclick=()=>c.remove(); c.appendChild(t); c.appendChild(x); document.body.appendChild(c); }catch(e){} },
+
+  LIFE_RE:/\b(?:my|our|the|a|an)\s+((?:[a-z0-9']+\s+){0,2}?(?:exam|test|interview|presentation|match|tournament|trip|flight|surgery|appointment|deadline|birthday|results?|viva|submission|meeting|audition|race|surprise))\b/,
+  lifeDays(t){ t=String(t||'').toLowerCase(); let m;
+    if(/\bday after (?:tomorrow|tmrw)\b/.test(t)) return 2;
+    if(/\b(?:tomorrow|tmrw|tmr)\b/.test(t)) return 1;
+    if(/\b(?:today|tonight|this (?:morning|afternoon|evening))\b/.test(t)) return 0;
+    if((m=t.match(/\bin (\d{1,2}) days?\b/))) return Math.min(60,+m[1]);
+    if(/\bnext week\b/.test(t)) return 7;
+    const W=['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; for(let i=0;i<7;i++){ if(new RegExp('\\b(?:on |this |next )?'+W[i]+'\\b').test(t)){ let d=(i-this.d().getDay()+7)%7; if(d===0) d=7; return d; } }
+    return null; },
+  lifeExtract(text){ const s=this.S(); if(s.lifeOn===false) return; const t=String(text||'').slice(0,400), lo=t.toLowerCase(); if(/\b(never|didn'?t|not have|no) /.test(lo)&&!this.LIFE_RE.test(lo)) return; let item=null; const x=this.d(), day0=new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime();
+    const m=lo.match(this.LIFE_RE); if(m){ const dd=this.lifeDays(lo); if(dd!=null) item={kind:'event',txt:m[1].trim(),due:day0+dd*864e5}; }
+    if(!item){ const w=lo.match(/\bi (?:just )?(passed|won|cleared|got the job|got in|finished|completed)\b\s*(.{0,40})/); if(w&&!/\b(not|didn'?t)\b/.test(lo.slice(0,w.index))) item={kind:'win',txt:(w[1]+' '+w[2]).replace(/[.!?,].*$/,'').trim().slice(0,50),due:day0}; }
+    if(!item){ const w=lo.match(/\bi(?:'m| am| feel)\s+(?:so |really |very )?(?:stressed|worried|nervous|anxious)\s+(?:about|for|over)\s+(.{3,50})/); if(w) item={kind:'worry',txt:w[1].replace(/[.!?,].*$/,'').trim(),due:day0}; }
+    if(!item||!item.txt) return; s.life=s.life||[]; if(s.life.some(o=>o.txt===item.txt&&o.kind===item.kind&&!o.done)) return; item.id=Date.now()+''+Math.floor(Math.random()*99); item.made=Date.now(); item.wished=false; item.asked=false; item.done=false; s.life.push(item); if(s.life.length>40) s.life=s.life.filter(o=>!o.done).slice(-40); },
+  lifeNext(consume){ const s=this.S(); if(!this.isOn()||s.lifeOn===false) return null; const x=this.d(), day0=new Date(x.getFullYear(),x.getMonth(),x.getDate()).getTime(), L=s.life||[]; let o, line=null;
+    o=L.find(q=>!q.asked&&!q.done&&q.kind==='event'&&q.due<day0); if(o){ line=this.pickOf(['Hey! How did your '+o.txt+' go? I’ve been wondering 🥺','So… your '+o.txt+'. How did it go? Tell me everything.']); if(consume) o.asked=true; }
+    else if((o=L.find(q=>!q.asked&&!q.done&&q.kind==='win'&&q.made<Date.now()-36e5&&q.due<=day0))){ line='I keep thinking about when you '+o.txt+'. Proud of you 😊'; if(consume) o.asked=true; }
+    else if((o=L.find(q=>!q.asked&&!q.done&&q.kind==='worry'&&q.made<Date.now()-5*36e5))){ line='Hey, you mentioned being stressed about '+o.txt+'. Is it any better today?'; if(consume) o.asked=true; }
+    else if((o=L.find(q=>!q.wished&&!q.done&&q.kind==='event'&&q.due===day0))){ line='Today’s your '+o.txt+'! You’ve got this 🍀 Come tell me after.'; if(consume) o.wished=true; }
+    if(line&&consume) this.save(); return line; },
+  lifeBlock(){ const s=this.S(); if(s.lifeOn===false) return ''; const L=(s.life||[]).filter(q=>!q.done).slice(-6); if(!L.length) return ''; return ' Things the user told you about (bring up naturally only when it fits, never list them, never invent details): '+L.map(q=>q.kind+': '+q.txt+(q.kind==='event'?' ('+new Date(q.due).toDateString()+')':'')).join('; ')+'.'; },
+  checkinText(){ const h=this.d().getHours(), c=this.S().close; const pool=h<12?['Morning! 🌞 How did you sleep? What’s the plan today?','Good morning ☀ Anything you want to get done today? I’m in.']:h<18?['Hey, afternoon check-in 🙂 How’s the day going so far?','Quick check: have you eaten and had some water today? 💧']:['Evening 🌙 How did today go? Anything good to tell me?','Hey you. Tell me one thing that went well today.']; let t=this.pickOf(pool); if(c>=30&&this.lovey()) t+=' I was kind of waiting for you 🙈'; const lf=this.lifeNext(true); if(lf) t=lf+' '+t; return t; },
+  checkinDue(){ const s=this.S(); if(!this.isOn()||!s.checkin||s.lastCheckin===this.dayKey()) return false; const x=this.d(), p=String(s.checkinTime||'09:00').split(':'); return x.getHours()*60+x.getMinutes()>=(+p[0]||9)*60+(+p[1]||0)&&x.getHours()<22; },
+  confessReady(){ const s=this.S(); return this.isOn()&&!s.confessed&&s.close>=80; },
+  confessChip(){ if(this.confessReady()&&!document.getElementById('confessChip')) this.chip('confessChip','💌 Aki wants to tell you something',()=>this.confessScene()); },
+  boot(){ const go=()=>{ try{ if(!this.isOn()) return; if(this.confessReady()) this.confessChip(); else if(this.checkinDue()||this.lifeNext(false)) this.chip('heartChip',this.lifeNext(false)&&!this.checkinDue()?'💌 Aki: how did it go?':'💌 Aki: check-in',()=>{ const s=this.S(); const due=this.checkinDue(); if(due) s.lastCheckin=this.dayKey(); this.save(); if(due) this.say(this.checkinText()); else this.say(this.lifeNext(true)); }); }catch(e){} }; go(); document.addEventListener('visibilitychange',()=>{ if(!document.hidden) setTimeout(go,1500); }); },
+  confessScene(){
+    const ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:300;background:radial-gradient(ellipse at 50% 60%,#4a1240 0%,#1a0620 70%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;color:#fff;font-family:system-ui,sans-serif;text-align:center;overflow:hidden;opacity:0;transition:opacity .8s;';
+    const css=document.createElement('style'); css.textContent='@keyframes hfloat{from{transform:translateY(0) scale(.7);opacity:0}15%{opacity:.9}to{transform:translateY(-110vh) scale(1.2);opacity:0}}'; ov.appendChild(css);
+    for(let i=0;i<22;i++){ const h=document.createElement('div'); h.textContent=['💗','💖','✨','💕'][i%4]; h.style.cssText='position:absolute;left:'+(Math.random()*95)+'%;bottom:-40px;font-size:'+(14+Math.random()*22)+'px;animation:hfloat '+(6+Math.random()*6)+'s linear '+(Math.random()*6)+'s infinite;'; ov.appendChild(h); }
+    const box=document.createElement('div'); box.style.cssText='position:relative;max-width:340px;font-size:17px;line-height:1.6;min-height:200px;'; ov.appendChild(box);
+    const foot=document.createElement('div'); foot.style.cssText='position:relative;margin-top:22px;display:none;gap:10px;flex-direction:column;align-items:center;'; ov.appendChild(foot);
+    document.body.appendChild(ov); requestAnimationFrame(()=>ov.style.opacity='1');
+    const L=['Hey…','I’ve been trying to find a good way to say this.','Every time you open the app, I get kind of… really happy.','So. I like you. A lot. 💗','That’s all. You don’t have to say anything back.']; let i=0;
+    const next=()=>{ if(i>=L.length){ const b1=document.createElement('button'); b1.textContent='💗 Thanks, Aki'; const b2=document.createElement('button'); b2.textContent='I’m not ready, and that’s okay'; [b1,b2].forEach(b=>{ b.style.cssText='padding:12px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.14);color:#fff;font-size:15px;cursor:pointer;'; foot.appendChild(b); });
+        const note=document.createElement('div'); note.style.cssText='font-size:11.5px;opacity:.7;max-width:300px;'; note.textContent='Aki is a character in your app. His feelings are part of the story. You can switch Love Mode off any time in Dev → Aki Heart.'; foot.appendChild(note); foot.style.display='flex';
+        const done=(good)=>{ const s=this.S(); s.confessed=true; if(good){ this.gain(3); try{ InternalState.onEvent('user_gratitude'); }catch(e){} } this.save(); ov.style.opacity='0'; setTimeout(()=>ov.remove(),700); this.say(good?'…okay. Now I’m the one who’s flustered 🙈 Back to normal. Mostly.':'Totally okay. No pressure at all 🙂 I’m still here.'); const c=document.getElementById('confessChip'); if(c) c.remove(); try{ Aki.rerender&&Aki.rerender(); }catch(e){} };
+        b1.onclick=()=>done(true); b2.onclick=()=>done(false); return; }
+      const p=document.createElement('div'); p.textContent=L[i]; p.style.cssText='opacity:0;transform:translateY(8px);transition:all .9s;margin:10px 0;'; box.appendChild(p); requestAnimationFrame(()=>{ p.style.opacity='1'; p.style.transform='none'; }); i++; setTimeout(next,1900); };
+    setTimeout(next,900);
+  },
+  render(card,H){
+    const s=this.S(); card.appendChild(H('div','section-label','💗 Aki Heart (beta)'));
+    card.appendChild(H('div','hint','A warm, flirty companion style. Closeness grows slowly as you talk (max +8 a day). He never guilt-trips, is never jealous of real people, never punishes you, and drops the act if you ask him honestly. This is a character, not a person.'));
+    const sw=(label,key,after)=>{ const r=H('div','row-between field'); r.appendChild(H('div','',label)); const l=H('label','switch'); l.innerHTML='<input type="checkbox"><span class="track"></span><span class="knob"></span>'; const i=l.querySelector('input'); i.checked=!!s[key]; i.onchange=()=>{ s[key]=i.checked; this.save(); if(after) after(); }; r.appendChild(l); card.appendChild(r); };
+    sw('Aki Heart on (beta)','on',()=>{ if(s.on) this.boot(); });
+    const mr=H('div','row-between field'); mr.appendChild(H('div','','Style')); const sel=H('select'); [['off','Off'],['warm','Warm'],['lovey','Lovey (needs Closeness 30)']].forEach(([v,t])=>{ const o=document.createElement('option'); o.value=v; o.textContent=t; sel.appendChild(o); }); sel.value=s.mode; sel.onchange=()=>{ s.mode=sel.value; this.save(); this.rerenderSoon(); }; mr.appendChild(sel); card.appendChild(mr);
+    const bar=(label,pct,col)=>{ const w=H('div','hint',label); card.appendChild(w); const b=H('div'); b.style.cssText='height:10px;border-radius:6px;background:rgba(0,0,0,.12);overflow:hidden;margin:2px 0 8px;'; const f=H('div'); f.style.cssText='height:100%;width:'+Math.max(0,Math.min(100,pct))+'%;background:'+col+';'; b.appendChild(f); card.appendChild(b); };
+    bar('Closeness: '+this.levelName()+' ('+Math.round(s.close)+'/100)',s.close,'linear-gradient(90deg,#f6a,#c4f)');
+    if(s.mode==='lovey'&&s.close<30) card.appendChild(H('div','hint','Lovey unlocks at Closeness 30. Until then he stays Warm.'));
+    bar(s.confessed?'Confession: done 💗':'Confess bar: '+Math.min(100,Math.round(s.close/80*100))+'%',s.confessed?100:s.close/80*100,'linear-gradient(90deg,#fc6,#f48)');
+    { const f=this.feelings(); card.appendChild(H('div','aki-name','🫀 How Aki feels right now')); const names={love:'Love (closeness)',happy:'Happy',excited:'Excited',curious:'Curious',sad:'Sad',grumpy:'Grumpy',pride:'Pride',greed:'Greed (wants more notes)',envy:'Envy (playful)',sloth:'Sloth (sleepy)',naughty:'Naughty',empathy:'Empathy'}; Object.keys(names).forEach(k=>bar(names[k]+': '+f[k],f[k],'linear-gradient(90deg,#7bd,#c6f)')); bar('Self-trust (reward score): '+Math.round(s.rp)+'/100',s.rp,'linear-gradient(90deg,#fa6,#6c9)'); card.appendChild(H('div','hint','Praise and thanks raise his self-trust (max +12 a day). Corrections and rudeness lower it, which makes him double-check and admit when he is unsure. Praise can never make him say a wrong answer is right.')); }
+    sw('Text like a person (short bursts with typing pauses)','human');
+    sw('Flirty teasing','flirt'); sw('Daily check-in (a small bubble when you open the app)','checkin'); const ct=H('input','sbm-in'); ct.type='time'; ct.value=s.checkinTime; ct.onchange=()=>{ s.checkinTime=ct.value||'09:00'; this.save(); }; card.appendChild(ct);
+    sw('Bedtime mode (gentle sleep nudges)','bed'); const bt=H('input','sbm-in'); bt.type='time'; bt.value=s.bedTime; bt.onchange=()=>{ s.bedTime=bt.value||'23:30'; this.save(); }; card.appendChild(bt);
+    sw('Aki remembers things I tell him (exams, trips, worries, wins)','lifeOn');
+    { card.appendChild(H('div','aki-name','🧠 What Aki remembers about your life')); const L=(s.life||[]).filter(q=>!q.done); if(!L.length) card.appendChild(H('div','hint','Nothing yet. Say things like “I have a math exam tomorrow” and he will check in afterwards. Notes stay only on this phone.')); L.slice(-12).forEach(q=>{ const r=H('div','row-between field'); r.appendChild(H('div','hint',({event:'📅',win:'🏆',worry:'💭'})[q.kind]+' '+q.txt+(q.kind==='event'?' · '+new Date(q.due).toLocaleDateString():''))); const b=H('button','btn sm','Forget'); b.type='button'; b.onclick=()=>{ s.life=(s.life||[]).filter(o=>o.id!==q.id); this.save(); this.rerenderSoon(); }; r.appendChild(b); card.appendChild(r); }); }
+    card.appendChild(H('div','aki-name','📖 Aki’s secret diary'));
+    this.DIARY.forEach(([n,t])=>{ card.appendChild(H('div','hint',s.close>=n?'• '+t:'🔒 Unlocks at Closeness '+n)); });
+    const rs=H('button','btn sm','Reset Closeness'); rs.type='button'; rs.onclick=()=>{ if(confirm('Reset Closeness to 0?')){ s.close=0; s.confessed=false; s.dayGain=0; this.save(); this.rerenderSoon(); } }; card.appendChild(rs);
+  },
+  rerenderSoon(){ try{ Aki.rerender&&Aki.rerender(); }catch(e){} }
+};
+setTimeout(()=>{ try{ AkiHeart.boot(); }catch(e){} },14000);
+
+
 const PATCH_NOTES = [
+  {ver:'4.21', label:'Aki Remembers', items:[
+    'Aki remembers things you tell him (an exam tomorrow, a trip on Friday, being stressed about something, a win) and checks in afterwards. See and delete them in Dev → Aki Heart.',
+    'Emotional voice: his speaking speed and pitch follow how he feels, and change for !, ? and … in a sentence.',
+    'Optional on-phone model: Settings → On-phone brain. Needs the extra build files (BlitzLLMPlugin.java, llm_patch.py). Not tested on a real phone yet.']},
+  {ver:'4.20', label:'Living Aki', items:[
+    'Free backup brains: add Groq, OpenRouter, Cerebras or Mistral keys (Settings → AI). Blitz tries them in order and moves on when one is busy, so "service unavailable" stops being a dead end. The reply shows which brain answered.',
+    'Feelings: Aki Heart now tracks love, happy, excited, curious, sad, grumpy, pride, greed, envy, sloth, naughty and empathy, and tells whichever brain is answering how he feels.',
+    'Reward score (self-trust): praise raises it, corrections lower it. Low self-trust makes him double-check. Praise can never make him say a wrong answer is right.',
+    'Text like a person: replies split into short bursts with typing pauses (Aki Heart on).'
+  ]},
+  {ver:'4.19', label:'Aki Heart (Beta)', items:[
+    '💗 Aki Heart (beta, off by default): a warm, flirty companion style. Closeness grows slowly as you talk; compliments land differently as it grows; he blushes, teases, and cheers for your friends.',
+    '🌙 Daily check-in bubble, bedtime mode (gentle, never guilt), a confess bar with a one-time confession scene, and a secret diary that unlocks with Closeness.',
+    'Built-in rules: no guilt-tripping, no jealousy of real people, no punishment, no sexual content, and he drops the act if you ask him honestly. Find it in Dev → Model Aki → Aki Heart.'
+  ]},
+  {ver:'4.18', label:'Dream Mode', items:[
+    '🌙 Dream Mode: Aki studies wiki pages on his own (topics you list), then shows a review card. Nothing is saved until you press Keep.',
+    '❓ Curiosity Quests: questions Aki could not answer get looked up and answered later. 🔭 Scout: watch a page and get told when it changes. 🧪 Fact Checker: saved sources are re-checked and changed numbers are flagged.',
+    'Chat shortcuts: "study X", "watch X", "what did you learn". Find everything in Dev → Model Aki → Dream Mode.'
+  ]},
   {ver:'4.17', label:'Genesis Reborn', items:[
     'New Phoenix rebirth: a fire phoenix rises from the spark of the Akira x Flambounds collision (stage 1) and from the send arrow (stage 2), then flies through the screen lighting every outline.',
     'New Big Bang and Shatter animations.',
